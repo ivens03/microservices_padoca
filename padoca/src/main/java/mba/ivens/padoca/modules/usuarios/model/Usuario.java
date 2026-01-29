@@ -1,12 +1,17 @@
 package mba.ivens.padoca.modules.usuarios.model;
 
 import jakarta.persistence.*;
+import lombok.Data;
 import mba.ivens.padoca.modules.usuarios.model.enums.TipoUsuario;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
-public class Usuario {
+@Data
+@Entity
+@Table(name = "usuarios", schema = "acesso")
+@Inheritance(strategy = InheritanceType.JOINED)
+public abstract class Usuario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,6 +31,9 @@ public class Usuario {
 
     @Enumerated(EnumType.STRING)
     private TipoUsuario tipo;
+
+    @Column
+    private Boolean ativo = true;
 
     @CreationTimestamp
     private LocalDateTime dataCriacao;
