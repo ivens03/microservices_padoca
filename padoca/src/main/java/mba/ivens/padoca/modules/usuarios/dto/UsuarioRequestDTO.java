@@ -17,7 +17,7 @@ public record UsuarioRequestDTO(
         @NotBlank(message = "Senha é obrigatória")
         String senha,
 
-        @CPF(message = "CPF inválido")
+        //@CPF(message = "CPF inválido")
         String cpf,
 
         @NotNull(message = "Tipo de usuário é obrigatório")

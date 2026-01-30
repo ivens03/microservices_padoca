@@ -76,4 +76,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(apiError);
     }
 
+    @ExceptionHandler(org.springframework.web.multipart.support.MissingServletRequestPartException.class)
+    public ResponseEntity<ApiErrorDTO> handleMultipartMissing(
+            org.springframework.web.multipart.support.MissingServletRequestPartException ex,
+            HttpServletRequest request) {
+
+        ApiErrorDTO apiError = new ApiErrorDTO(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                "Requisição Inválida",
+                "Está faltando uma parte obrigatória na requisição: " + ex.getRequestPartName(),
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiError);
+    }
+
 }

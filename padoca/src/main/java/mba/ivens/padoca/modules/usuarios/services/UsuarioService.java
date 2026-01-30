@@ -22,14 +22,25 @@ public class UsuarioService {
 
     @Transactional
     public UsuarioResponseDTO criarUsuario(UsuarioRequestDTO dto) {
+        System.out.println("--- INICIANDO CRIAÇÃO ---");
+
         if (repository.existsByEmail(dto.email())) {
             throw new BusinessException("Já existe um usuário cadastrado com este e-mail.");
         }
         if (repository.existsByCpf(dto.cpf())) {
             throw new BusinessException("Já existe um usuário cadastrado com este CPF.");
         }
+
+        System.out.println("--- VALIDAÇÕES PASSARAM ---");
+
         Usuario novoUsuario = mapper.toEntity(dto);
+
+        System.out.println("--- ENTIDADE MAPEADA: " + novoUsuario.getNome() + " ---");
+
         Usuario usuarioSalvo = repository.save(novoUsuario);
+
+        System.out.println("--- SALVO COM SUCESSO ---");
+
         return mapper.toResponse(usuarioSalvo);
     }
 
