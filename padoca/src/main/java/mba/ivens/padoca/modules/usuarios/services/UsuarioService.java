@@ -3,6 +3,7 @@ package mba.ivens.padoca.modules.usuarios.services;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import mba.ivens.padoca.config.exception.exeption.BusinessException;
 import mba.ivens.padoca.modules.usuarios.dto.UsuarioRequestDTO;
 import mba.ivens.padoca.modules.usuarios.dto.UsuarioResponseDTO;
 import mba.ivens.padoca.modules.usuarios.dtoMapper.UsuarioMapper;
@@ -22,10 +23,10 @@ public class UsuarioService {
     @Transactional
     public UsuarioResponseDTO criarUsuario(UsuarioRequestDTO dto) {
         if (repository.existsByEmail(dto.email())) {
-            throw new IllegalArgumentException("Email já cadastrado.");
+            throw new BusinessException("Já existe um usuário cadastrado com este e-mail.");
         }
         if (repository.existsByCpf(dto.cpf())) {
-            throw new IllegalArgumentException("CPF já cadastrado.");
+            throw new BusinessException("Já existe um usuário cadastrado com este CPF.");
         }
         Usuario novoUsuario = mapper.toEntity(dto);
         Usuario usuarioSalvo = repository.save(novoUsuario);

@@ -43,7 +43,7 @@ public class UsuarioController {
 
     @Operation(summary = "Listar usuários ativos", description = "Retorna a lista de todos os usuários que possuem a flag 'ativo' como TRUE.")
     @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
-    @GetMapping
+    @GetMapping("/ativos")
     public ResponseEntity<List<UsuarioResponseDTO>> listarAtivos() {
         return ResponseEntity.ok(service.listarTodosAtivos());
     }
