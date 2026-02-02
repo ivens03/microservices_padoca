@@ -37,7 +37,9 @@ public class Produto {
     private Boolean ativo = true;
 
     private Integer quantidadeEstoque = 0;
-    
+
+    private Integer estoqueMinimo = 5; // Valor padrão 5
+
     private String diaDaSemanaDisponivel;
 
     @CreationTimestamp
@@ -45,5 +47,4 @@ public class Produto {
 
     @UpdateTimestamp
     private LocalDateTime dataAtualizacao;
-
 }
