@@ -16,7 +16,6 @@ export interface Produto {
     preco: number;
     imagemUrl: string;
     ativo: boolean;
-    // O backend pode retornar null ou objeto
     categoria: Categoria | null;
     quantidadeEstoque: number;
     estoqueMinimo: number;
@@ -37,4 +36,20 @@ export interface DashboardStats {
     itensCriticos: number;
     filaPedidos: number;
     lucroMedio: number;
+}
+
+// --- NOVOS TIPOS PARA FUNCIONÁRIOS ---
+export interface Usuario {
+    id: number;
+    nome: string;
+    email: string;
+    cargo: 'GESTOR' | 'FUNCIONARIO';
+    ativo: boolean;
+}
+
+export interface UsuarioDTO {
+    nome: string;
+    email: string;
+    senha?: string;
+    cargo: 'GESTOR' | 'FUNCIONARIO';
 }

@@ -1,7 +1,8 @@
-import type { Categoria, CategoriaDTO, Produto, DashboardStats, Pedido } from "../types";
+import type { Categoria, CategoriaDTO, Produto, DashboardStats, Pedido, Usuario, UsuarioDTO } from "../types";
 
 const API_BASE = "http://localhost:8080/api";
 
+// ... (DashboardService mantido igual) ...
 export const DashboardService = {
   getStats: async (): Promise<DashboardStats> => {
     const res = await fetch(`${API_BASE}/dashboard/stats`);
@@ -10,6 +11,7 @@ export const DashboardService = {
   }
 };
 
+// ... (CategoriaService mantido igual) ...
 export const CategoriaService = {
   listar: async (): Promise<Categoria[]> => {
     const res = await fetch(`${API_BASE}/categorias`);
@@ -37,6 +39,7 @@ export const CategoriaService = {
   },
 };
 
+// ... (ProdutoService mantido igual) ...
 export const ProdutoService = {
   listarTodos: async (): Promise<Produto[]> => {
      const res = await fetch(`${API_BASE}/produtos`);
@@ -61,13 +64,20 @@ export const ProdutoService = {
   }
 };
 
+// ... (PedidoService mantido igual) ...
 export const PedidoService = {
   listarFila: async (): Promise<Pedido[]> => {
     const res = await fetch(`${API_BASE}/pedidos`);
     if (!res.ok) return [];
     return res.json();
   },
-  criar: async (pedido: { cliente: string, tipo: string, itens: { produtoId: number, quantidade: number }[] }) => {
+  listarEncomendas: async (): Promise<Pedido[]> => {
+    const res = await fetch(`${API_BASE}/pedidos`); 
+    if (!res.ok) return [];
+    const todos = await res.json();
+    return todos.filter((p: Pedido) => p.tipo === 'ENCOMENDA'); 
+  },
+  criar: async (pedido: { cliente: string, tipo: string, dataHora?: string, itens: { produtoId?: number, quantidade?: number, descricao?: string }[] }) => {
     const res = await fetch(`${API_BASE}/pedidos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,4 +89,25 @@ export const PedidoService = {
   avancarStatus: async (id: number) => {
     await fetch(`${API_BASE}/pedidos/${id}/avancar`, { method: 'PATCH' });
   }
+};
+
+// --- NOVO SERVIÇO DE USUÁRIOS ---
+export const UsuarioService = {
+    listar: async (): Promise<Usuario[]> => {
+        const res = await fetch(`${API_BASE}/usuarios`);
+        if (!res.ok) return [];
+        return res.json();
+    },
+    salvar: async (dto: UsuarioDTO): Promise<Usuario> => {
+        const res = await fetch(`${API_BASE}/usuarios`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dto),
+        });
+        if (!res.ok) throw new Error("Erro ao salvar usuário");
+        return res.json();
+    },
+    deletar: async (id: number) => {
+        await fetch(`${API_BASE}/usuarios/${id}`, { method: 'DELETE' });
+    }
 };
