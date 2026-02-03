@@ -1,4 +1,4 @@
-package mba.ivens.padoca.modules.usuarios.services;
+package mba.ivens.padoca.modules.usuarios.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;

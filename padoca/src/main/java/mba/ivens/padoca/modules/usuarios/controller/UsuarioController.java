@@ -9,7 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import mba.ivens.padoca.modules.usuarios.dto.UsuarioRequestDTO;
 import mba.ivens.padoca.modules.usuarios.dto.UsuarioResponseDTO;
-import mba.ivens.padoca.modules.usuarios.services.UsuarioService;
+import mba.ivens.padoca.modules.usuarios.service.UsuarioService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
