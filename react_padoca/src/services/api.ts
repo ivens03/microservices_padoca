@@ -1,8 +1,8 @@
-import type { Categoria, CategoriaDTO, Produto, DashboardStats, Pedido, Usuario, UsuarioDTO } from "../types";
+import type { Categoria, CategoriaDTO, Produto, DashboardStats, Pedido, 
+    Usuario, UsuarioDTO, LoginDTO, LoginResponseDTO } from "../types";
 
 const API_BASE = "http://localhost:8080/api";
 
-// ... (DashboardService mantido igual) ...
 export const DashboardService = {
   getStats: async (): Promise<DashboardStats> => {
     const res = await fetch(`${API_BASE}/dashboard/stats`);
@@ -11,7 +11,6 @@ export const DashboardService = {
   }
 };
 
-// ... (CategoriaService mantido igual) ...
 export const CategoriaService = {
   listar: async (): Promise<Categoria[]> => {
     const res = await fetch(`${API_BASE}/categorias`);
@@ -39,7 +38,6 @@ export const CategoriaService = {
   },
 };
 
-// ... (ProdutoService mantido igual) ...
 export const ProdutoService = {
   listarTodos: async (): Promise<Produto[]> => {
      const res = await fetch(`${API_BASE}/produtos`);
@@ -64,7 +62,6 @@ export const ProdutoService = {
   }
 };
 
-// ... (PedidoService mantido igual) ...
 export const PedidoService = {
   listarFila: async (): Promise<Pedido[]> => {
     const res = await fetch(`${API_BASE}/pedidos`);
@@ -91,7 +88,6 @@ export const PedidoService = {
   }
 };
 
-// --- NOVO SERVIÇO DE USUÁRIOS ---
 export const UsuarioService = {
     listar: async (): Promise<Usuario[]> => {
         const res = await fetch(`${API_BASE}/usuarios`);
@@ -104,10 +100,35 @@ export const UsuarioService = {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(dto),
         });
-        if (!res.ok) throw new Error("Erro ao salvar usuário");
+        if (!res.ok) {
+            const errorText = await res.text();
+            try {
+                const errorJson = JSON.parse(errorText);
+                // Retorna mensagem do back ou genérica
+                throw new Error(errorJson.message || "Erro ao salvar usuário");
+            } catch { 
+                throw new Error(errorText || "Erro ao salvar usuário");
+            }
+        }
         return res.json();
     },
     deletar: async (id: number) => {
         await fetch(`${API_BASE}/usuarios/${id}`, { method: 'DELETE' });
+    }
+};
+
+export const AuthService = {
+    login: async (creds: LoginDTO): Promise<LoginResponseDTO> => {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(creds)
+        });
+        
+        if (!res.ok) {
+            throw new Error("Usuário ou senha inválidos");
+        }
+        
+        return res.json();
     }
 };

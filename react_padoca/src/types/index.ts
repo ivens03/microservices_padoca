@@ -38,18 +38,30 @@ export interface DashboardStats {
     lucroMedio: number;
 }
 
-// --- NOVOS TIPOS PARA FUNCIONÁRIOS ---
 export interface Usuario {
     id: number;
     nome: string;
     email: string;
-    cargo: 'GESTOR' | 'FUNCIONARIO';
+    tipo: 'GESTOR' | 'FUNCIONARIO' | 'CLIENTE'; // Era 'cargo', mudamos para 'tipo'
     ativo: boolean;
+    cpf?: string;
 }
 
 export interface UsuarioDTO {
     nome: string;
     email: string;
     senha?: string;
-    cargo: 'GESTOR' | 'FUNCIONARIO';
+    tipo: 'GESTOR' | 'FUNCIONARIO' | 'CLIENTE'; // Era 'cargo', mudamos para 'tipo'
+    cpf?: string;
+}
+
+export interface LoginDTO {
+    email: string;
+    senha?: string;
+}
+
+export interface LoginResponseDTO {
+    token: string;
+    nome: string;
+    tipo: 'CLIENTE' | 'FUNCIONARIO' | 'GESTOR';
 }

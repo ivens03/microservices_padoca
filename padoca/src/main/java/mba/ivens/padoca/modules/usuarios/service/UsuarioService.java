@@ -9,37 +9,49 @@ import mba.ivens.padoca.modules.usuarios.dto.UsuarioResponseDTO;
 import mba.ivens.padoca.modules.usuarios.dtoMapper.UsuarioMapper;
 import mba.ivens.padoca.modules.usuarios.model.Usuario;
 import mba.ivens.padoca.modules.usuarios.repository.UsuarioRepository;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class UsuarioService {
+public class UsuarioService implements UserDetailsService {
 
     private final UsuarioRepository repository;
     private final UsuarioMapper mapper;
+    private final PasswordEncoder passwordEncoder;
+
+    // --- Método obrigatório para o Login funcionar ---
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        return repository.findAll().stream()
+                .filter(u -> u.getEmail().equals(email))
+                .findFirst()
+                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado com e-mail: " + email));
+    }
 
     @Transactional
     public UsuarioResponseDTO criarUsuario(UsuarioRequestDTO dto) {
-        System.out.println("--- INICIANDO CRIAÇÃO ---");
-
+        // Validações
         if (repository.existsByEmail(dto.email())) {
             throw new BusinessException("Já existe um usuário cadastrado com este e-mail.");
         }
-        if (repository.existsByCpf(dto.cpf())) {
+        // Verifica se CPF existe (considerando validação nula para evitar erro se não vier)
+        if (dto.cpf() != null && repository.existsByCpf(dto.cpf())) {
             throw new BusinessException("Já existe um usuário cadastrado com este CPF.");
         }
 
-        System.out.println("--- VALIDAÇÕES PASSARAM ---");
-
         Usuario novoUsuario = mapper.toEntity(dto);
 
-        System.out.println("--- ENTIDADE MAPEADA: " + novoUsuario.getNome() + " ---");
+        // --- CRUCIAL: Criptografa a senha antes de salvar ---
+        // Sem isso, o login falha pois a senha no banco fica "123456" e o sistema espera um Hash.
+        novoUsuario.setSenha(passwordEncoder.encode(dto.senha()));
 
         Usuario usuarioSalvo = repository.save(novoUsuario);
-
-        System.out.println("--- SALVO COM SUCESSO ---");
 
         return mapper.toResponse(usuarioSalvo);
     }
@@ -70,5 +82,4 @@ public class UsuarioService {
         usuario.setAtivo(false);
         repository.save(usuario);
     }
-
 }
