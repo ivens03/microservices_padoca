@@ -1,101 +1,133 @@
-import { useEffect, useState } from 'react';
-import { ClipboardList, CheckCircle, Clock } from 'lucide-react';
-import { PedidoService } from '../../services/api';
-import type { Pedido } from '../../types';
+import { useEffect, useState } from "react";
+import { Clock, CheckCircle, ChefHat, AlertCircle, RefreshCw } from "lucide-react";
+import { PedidoService } from "../../services/api";
+import type { Pedido } from "../../types";
 
-export function OrderBoard() {
+// --- AQUI ESTÁ A CORREÇÃO: Definir que aceita 'viewMode' ---
+interface OrderBoardProps {
+    viewMode: 'gestor' | 'cozinha' | 'balcao';
+}
+
+export function OrderBoard({ viewMode }: OrderBoardProps) { // <--- Recebendo a prop aqui
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
+    const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        let isMounted = true;
-        const carregarPedidos = async () => {
-            try {
-                const dados = await PedidoService.listarFila();
-                if (isMounted) setPedidos(dados);
-            } catch (error) {
-                console.error("Erro ao buscar pedidos", error);
-            }
-        };
-        carregarPedidos();
-        const intervalo = setInterval(carregarPedidos, 5000);
-        return () => { isMounted = false; clearInterval(intervalo); };
-    }, []);
-
-    const avancarStatus = async (id: number) => {
-        await PedidoService.avancarStatus(id);
-        const dados = await PedidoService.listarFila();
-        setPedidos(dados);
+    const carregarPedidos = async () => {
+        setLoading(true);
+        try {
+            const dados = await PedidoService.listarFila();
+            // Se quiser filtrar por viewMode no futuro, pode fazer aqui
+            setPedidos(dados);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const getCorStatus = (status: string) => {
-        switch(status?.toLowerCase()) {
-            case 'pendente': return 'bg-amber-100 text-amber-700 border-amber-200';
-            case 'preparando': return 'bg-blue-100 text-blue-700 border-blue-200';
-            case 'pronto': return 'bg-green-100 text-green-700 border-green-200';
-            default: return 'bg-stone-100 text-stone-600';
+    useEffect(() => {
+        carregarPedidos();
+        const interval = setInterval(carregarPedidos, 30000);
+        return () => clearInterval(interval);
+    }, [viewMode]); // Recarrega se mudar o modo
+
+    const avancarStatus = async (id: number) => {
+        try {
+            await PedidoService.avancarStatus(id);
+            carregarPedidos();
+        } catch {
+            alert("Erro ao avançar status");
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'RECEBIDO': return 'bg-blue-100 text-blue-700 border-blue-200';
+            case 'EM_PREPARO': return 'bg-amber-100 text-amber-700 border-amber-200';
+            case 'PRONTO': return 'bg-green-100 text-green-700 border-green-200';
+            default: return 'bg-stone-100 text-stone-700';
         }
     };
 
     return (
-        <div className="space-y-6 animate-page-transition">
+        <div className="space-y-6">
             <div className="flex justify-between items-center bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
                 <div>
-                    <h2 className="text-xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-2">
-                        <ClipboardList className="text-blue-500" /> Fila da Cozinha
+                    <h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-2">
+                        <ChefHat className="text-amber-500" /> 
+                        Fila de Pedidos
                     </h2>
-                    <p className="text-xs text-stone-500">Pedidos aguardando preparo.</p>
+                    <p className="text-stone-500">Acompanhe e gerencie os pedidos em tempo real.</p>
                 </div>
-                <div className="text-right">
-                    <p className="text-2xl font-bold text-stone-800 dark:text-stone-100">{pedidos.length}</p>
-                    <p className="text-[10px] text-stone-400 uppercase tracking-widest">Pendentes</p>
-                </div>
+                <button onClick={carregarPedidos} className="p-3 bg-stone-100 dark:bg-stone-800 rounded-full hover:bg-stone-200 transition-colors" title="Atualizar">
+                    <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
+                </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pedidos.length === 0 && (
-                    <p className="col-span-full text-center text-stone-400 py-10">Cozinha livre! 🎉</p>
-                )}
-                
-                {pedidos.map(pedido => (
-                    <div key={pedido.id} className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden flex flex-col hover:shadow-xl transition-all">
-                        <div className={`h-1.5 w-full ${pedido.tipo === 'ENTREGA' ? 'bg-purple-500' : 'bg-amber-500'}`}></div>
-                        <div className="p-6 flex-grow">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${pedido.tipo === 'ENTREGA' ? 'bg-purple-50 text-purple-600' : 'bg-amber-50 text-amber-600'}`}>
-                                        {pedido.tipo}
-                                    </span>
-                                    <h4 className="font-bold text-lg mt-1 text-stone-800 dark:text-stone-100">{pedido.cliente}</h4>
-                                </div>
-                                <span className="text-xs font-bold text-stone-400 flex items-center gap-1">
-                                    <Clock size={12}/> {pedido.dataHora}
-                                </span>
-                            </div>
-                            
-                            <ul className="space-y-2 mb-4 bg-stone-50 dark:bg-stone-800 p-3 rounded-xl">
-                                {pedido.descricaoItens.map((item, idx) => (
-                                    <li key={idx} className="text-sm font-medium text-stone-600 dark:text-stone-300 flex items-start gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-stone-300 mt-1.5 flex-shrink-0"></div>
-                                        {item}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        
-                        <div className="p-4 pt-0">
-                            <button 
-                                onClick={() => avancarStatus(pedido.id)}
-                                className={`w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 border ${getCorStatus(pedido.status)}`}
-                            >
-                                {pedido.status === 'pendente' && 'Iniciar Preparo'}
-                                {pedido.status === 'preparando' && 'Marcar Pronto'}
-                                {pedido.status === 'pronto' && 'Entregar'}
-                                <CheckCircle size={16} />
-                            </button>
-                        </div>
-                    </div>
-                ))}
+                {/* COLUNA: RECEBIDO */}
+                <div className="space-y-4">
+                    <h3 className="font-bold text-stone-500 uppercase tracking-widest text-xs flex items-center gap-2 mb-4">
+                        <span className="w-2 h-2 rounded-full bg-blue-500"></span> Recebidos
+                    </h3>
+                    {pedidos.filter(p => p.status === 'RECEBIDO').map(p => (
+                        <CardPedido key={p.id} pedido={p} color={getStatusColor('RECEBIDO')} onAdvance={() => avancarStatus(p.id)} btnLabel="Iniciar Preparo" />
+                    ))}
+                    {pedidos.filter(p => p.status === 'RECEBIDO').length === 0 && <EmptyState msg="Nenhum pedido novo" />}
+                </div>
+
+                {/* COLUNA: EM PREPARO */}
+                <div className="space-y-4">
+                    <h3 className="font-bold text-stone-500 uppercase tracking-widest text-xs flex items-center gap-2 mb-4">
+                        <span className="w-2 h-2 rounded-full bg-amber-500"></span> Em Preparo
+                    </h3>
+                    {pedidos.filter(p => p.status === 'EM_PREPARO').map(p => (
+                        <CardPedido key={p.id} pedido={p} color={getStatusColor('EM_PREPARO')} onAdvance={() => avancarStatus(p.id)} btnLabel="Finalizar" />
+                    ))}
+                    {pedidos.filter(p => p.status === 'EM_PREPARO').length === 0 && <EmptyState msg="Cozinha livre" />}
+                </div>
+
+                {/* COLUNA: PRONTO */}
+                <div className="space-y-4">
+                    <h3 className="font-bold text-stone-500 uppercase tracking-widest text-xs flex items-center gap-2 mb-4">
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span> Prontos
+                    </h3>
+                    {pedidos.filter(p => p.status === 'PRONTO').map(p => (
+                        <CardPedido key={p.id} pedido={p} color={getStatusColor('PRONTO')} onAdvance={() => avancarStatus(p.id)} btnLabel="Entregar" />
+                    ))}
+                    {pedidos.filter(p => p.status === 'PRONTO').length === 0 && <EmptyState msg="Nada para entregar" />}
+                </div>
             </div>
         </div>
     );
 }
+
+const CardPedido = ({ pedido, color, onAdvance, btnLabel }: { pedido: Pedido, color: string, onAdvance: () => void, btnLabel: string }) => (
+    <div className={`bg-white dark:bg-stone-900 p-5 rounded-2xl border-l-4 shadow-sm hover:shadow-md transition-all ${color.replace('bg-', 'border-').split(' ')[2]}`}>
+        <div className="flex justify-between items-start mb-3">
+            <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase ${color}`}>{pedido.status}</span>
+            <span className="text-xs text-stone-400 flex items-center gap-1"><Clock size={12} /> {new Date(pedido.dataHora).toLocaleTimeString().slice(0, 5)}</span>
+        </div>
+        <h4 className="font-bold text-lg text-stone-800 dark:text-stone-100 mb-1">{pedido.cliente}</h4>
+        <div className="text-sm text-stone-600 dark:text-stone-400 mb-4 bg-stone-50 dark:bg-stone-800 p-3 rounded-xl">
+            <ul className="list-disc list-inside space-y-1">
+                {pedido.descricaoItens.map((item, i) => (
+                    <li key={i}>{item}</li>
+                ))}
+            </ul>
+        </div>
+        <div className="flex justify-between items-center border-t border-stone-100 dark:border-stone-800 pt-3">
+            <span className="font-bold text-stone-800 dark:text-stone-100">R$ {pedido.total.toFixed(2)}</span>
+            <button onClick={onAdvance} className="text-xs font-bold bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 px-3 py-2 rounded-lg hover:opacity-80 transition-opacity flex items-center gap-1">
+                {btnLabel} <CheckCircle size={14} />
+            </button>
+        </div>
+    </div>
+);
+
+const EmptyState = ({ msg }: { msg: string }) => (
+    <div className="border-2 border-dashed border-stone-200 dark:border-stone-800 rounded-2xl p-6 text-center text-stone-400">
+        <AlertCircle className="mx-auto mb-2 opacity-50" />
+        <p className="text-sm font-medium">{msg}</p>
+    </div>
+);

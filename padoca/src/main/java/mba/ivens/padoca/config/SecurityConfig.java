@@ -37,13 +37,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/produtos").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/categorias").permitAll()
 
                         // --- ROTAS RESTRITAS ---
                         .requestMatchers("/api/usuarios/admin/**").hasRole("GESTOR")
                         .requestMatchers(HttpMethod.POST, "/api/produtos").hasAnyRole("GESTOR", "FUNCIONARIO")
                         .requestMatchers(HttpMethod.PUT, "/api/produtos/**").hasAnyRole("GESTOR", "FUNCIONARIO")
 
-                        // --- TODO O RESTO EXIGE LOGIN ---
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
