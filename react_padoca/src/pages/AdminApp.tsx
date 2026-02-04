@@ -1,501 +1,532 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
-  ShoppingBag, Menu, Utensils, Plus, Minus, Sun, Moon, 
-  Coffee, Cake, Sandwich, ShoppingBasket, Wine, User, Clock,
-  Gift, Star, Info, MessageCircle, Phone, Mail, Send, UtensilsCrossed, Search,
-  Package, PenTool, X, AlignJustify, ChefHat, MapPin, Home, LogOut, Bell, Pencil, Settings, Briefcase
+  BarChart3, DollarSign, ClipboardList, PlusCircle, 
+  Package, Trash2, ChefHat, 
+  AlertTriangle, X, Upload, 
+  BookOpen, Gift, Coffee, ShoppingBasket,
+  Tags, Layers, MessageSquare, LogOut
 } from 'lucide-react';
-import { ProdutoService, PedidoService, CategoriaService, UsuarioService } from '../services/api';
-import type { Produto, Categoria, Endereco } from '../types';
+import { 
+    ProdutoService, 
+    PedidoService, 
+    CategoriaService, 
+    UsuarioService, 
+    DashboardService 
+} from '../services/api';
+import type { Produto, Categoria, Pedido, Usuario, DashboardStats } from '../types';
 
-interface CartItem extends Produto {
-    qty: number;
+// --- TIPO PERSONALIZADO PARA UI ---
+// Interface para o produto formatado para o layout
+interface ProdutoUI {
+    id: number;
+    name: string;
+    price: number;
+    category: string;
+    stock: number;
+    minStock: number;
+    image: string;
+    type: string;
 }
 
-const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' fill='%239ca3af'%3ESem Foto%3C/text%3E%3C/svg%3E";
+const API_URL = 'http://localhost:8080';
 
-interface NavigationMenuProps {
-    activeTab: string;
-    onTabChange: (tab: string) => void;
-}
+const formatPrice = (value: number | string) => {
+  const num = Number(value) || 0;
+  return num.toFixed(2).replace('.', ',');
+};
 
-const NavigationMenu = ({ activeTab, onTabChange }: NavigationMenuProps) => (
-    <nav className="space-y-1">
-        <button onClick={() => onTabChange('menu')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'menu' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-            <Menu size={20}/> Cardápio
-        </button>
-        <button onClick={() => onTabChange('almoco')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'almoco' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-            <UtensilsCrossed size={20}/> Almoço
-        </button>
-        <button onClick={() => onTabChange('mercado')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'mercado' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-            <ShoppingBasket size={20}/> Mercado
-        </button>
-        <button onClick={() => onTabChange('encomendas')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'encomendas' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-            <Gift size={20}/> Encomendas
-        </button>
-        <button onClick={() => onTabChange('fidelidade')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'fidelidade' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-            <Star size={20}/> Fidelidade
-        </button>
-        <button onClick={() => onTabChange('pedidos')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'pedidos' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-            <Clock size={20}/> Meus Pedidos
-        </button>
-        <button onClick={() => onTabChange('conta')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'conta' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-            <User size={20}/> Conta
-        </button>
-        <button onClick={() => onTabChange('sobre')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'sobre' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-            <Info size={20}/> Sobre
-        </button>
-    </nav>
-);
-
-const getIcon = (nome: string) => {
-    const n = nome.toLowerCase();
-    if(n.includes('bebida')) return Coffee;
-    if(n.includes('doce') || n.includes('confeitaria')) return Cake;
-    if(n.includes('lanche') || n.includes('salgado')) return Sandwich;
-    if(n.includes('mercado') || n.includes('mercearia')) return ShoppingBasket;
-    if(n.includes('adega')) return Wine;
-    return Menu;
-}
-
-export default function ClientApp() {
-  const [activeTab, setActiveTab] = useState('menu'); 
-  const [activeCategory, setActiveCategory] = useState<number | 'todos'>('todos');
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  const [products, setProducts] = useState<Produto[]>([]);
-  const [categories, setCategories] = useState<Categoria[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Estados da Conta
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
-  const [editData, setEditData] = useState({ nome: '', telefone: '', email: '' });
-  const [newAddress, setNewAddress] = useState<Endereco>({
-      logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'Fortaleza', estado: 'CE', cep: '', tipo: 'Casa'
+const getCurrentFullDate = () => {
+  return new Date().toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
   });
+};
 
-  const [rating, setRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
-  const [feedbackMsg, setFeedbackMsg] = useState('');
+const mapProdutoToLayout = (p: Produto): ProdutoUI => ({
+    id: p.id,
+    name: p.nome,
+    price: p.preco,
+    type: p.categoria?.nome?.includes('Almoço') ? 'Almoço' : 
+          p.categoria?.nome?.includes('Mercado') ? 'Mercado' : 'Padaria',
+    category: p.categoria?.nome || 'Geral',
+    stock: p.quantidadeEstoque,
+    minStock: p.estoqueMinimo,
+    image: p.imagemUrl ? `${API_URL}${p.imagemUrl}` : ''
+});
 
-  const [user, setUser] = useState({
-      id: 0,
-      nome: "Carregando...",
-      email: "...",
-      telefone: "",
-      membroDesde: "...",
-      enderecos: [] as Endereco[],
-      notificacoes: true
-  });
+// --- COMPONENTES ---
 
+const GestaoFeedback = () => {
+  const feedbacks: Array<{id: number, message: string}> = []; // Placeholder tipado
+  const averageRating = '0.0';
+
+  return (
+    <div className="space-y-6 animate-page-transition">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
+         <div>
+            <h2 className="text-xl font-bold flex items-center gap-2 text-stone-800 dark:text-stone-100">
+               <MessageSquare className="text-amber-500" /> Feedback dos Clientes
+            </h2>
+            <p className="text-xs text-stone-500">Avaliações e comentários recebidos.</p>
+         </div>
+         <div className="flex items-center gap-4">
+            <div className="text-right">
+               <p className="text-2xl font-bold text-stone-800 dark:text-stone-100">{averageRating}</p>
+               <p className="text-[10px] text-stone-400 uppercase tracking-widest">Média Geral</p>
+            </div>
+            <div className="h-10 w-px bg-stone-200 dark:bg-stone-700"></div>
+            <div>
+               <p className="text-2xl font-bold text-stone-800 dark:text-stone-100">{feedbacks.length}</p>
+               <p className="text-[10px] text-stone-400 uppercase tracking-widest">Avaliações</p>
+            </div>
+         </div>
+      </div>
+      {feedbacks.length === 0 && <div className="text-center py-10 text-stone-400">Nenhum feedback registrado.</div>}
+    </div>
+  );
+};
+
+const GestaoCategorias = ({ categories, onUpdate }: { categories: Categoria[], onUpdate: () => void }) => {
+  const [inputValue, setInputValue] = useState('');
+  
+  const handleSaveRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim()) return;
+    try {
+        await CategoriaService.salvar({ nome: inputValue });
+        setInputValue('');
+        onUpdate();
+        alert('Categoria salva!');
+    } catch (error) {
+        console.error(error);
+        alert('Erro ao salvar categoria.');
+    }
+  };
+
+  const handleDeleteRequest = async (id: number) => {
+    if(!confirm('Excluir categoria?')) return;
+    try {
+        await CategoriaService.deletar(id);
+        onUpdate();
+    } catch (error) {
+        alert('Erro ao deletar. Verifique se há produtos vinculados.');
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-page-transition relative">
+       <div className="flex justify-between items-center bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
+          <div><h2 className="text-xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-2"><Tags className="text-purple-500" size={24}/> Gestão de Categorias</h2><p className="text-xs text-stone-500">Defina as categorias para produtos de mercado.</p></div>
+       </div>
+
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleSaveRequest} className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-xl h-fit">
+             <h3 className="font-bold text-stone-800 dark:text-stone-100 mb-6 flex items-center gap-2">
+                <PlusCircle size={20} className="text-emerald-500"/> Nova Categoria
+             </h3>
+             <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Nome da Categoria</label>
+                  <input value={inputValue} onChange={e => setInputValue(e.target.value)} className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none border border-transparent focus:border-purple-500/30 transition-all" placeholder="Ex: Higiene, Bebidas, etc." />
+                </div>
+                <button className="w-full bg-purple-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-purple-700 transition-all active:scale-[0.98]">
+                    Adicionar Categoria
+                </button>
+             </div>
+          </form>
+
+          <div className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
+             <h3 className="font-bold text-stone-800 dark:text-stone-100 mb-6 flex items-center gap-2"><Layers size={20} className="text-blue-500"/> Categorias Ativas</h3>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {categories.map(cat => (
+                  <div key={cat.id} className="relative p-4 rounded-2xl border-2 border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 hover:border-purple-200 transition-all group">
+                      <div className="flex justify-between items-start mb-2">
+                         <div className="p-2 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-500"><Tags size={18} /></div>
+                         <button type="button" onClick={() => handleDeleteRequest(cat.id)} className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 transition-all"><Trash2 size={16}/></button>
+                      </div>
+                      <h4 className="font-bold text-stone-800 dark:text-stone-200">{cat.nome}</h4>
+                  </div>
+                ))}
+             </div>
+          </div>
+       </div>
+    </div>
+  )
+}
+
+const DashboardGestor = ({ products }: { products: ProdutoUI[] }) => {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  
   useEffect(() => {
-    const init = async () => {
-        try {
-            const [p, c] = await Promise.all([
-                ProdutoService.listarTodos(),
-                CategoriaService.listar()
-            ]);
-            setProducts(p);
-            setCategories(c);
-
-            try {
-                const usuarioReal = await UsuarioService.getMe();
-                const dataMembro = new Date(usuarioReal.dataCriacao).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
-
-                setUser({
-                    id: usuarioReal.id,
-                    nome: usuarioReal.nome,
-                    email: usuarioReal.email,
-                    telefone: usuarioReal.telefone || '',
-                    membroDesde: dataMembro,
-                    enderecos: usuarioReal.enderecos || [],
-                    notificacoes: true
-                });
-            } catch (authError) {
-                console.warn("Usuário não logado ou token expirado.", authError);
-            }
-
-        } catch (e) {
-            console.error("Erro de conexão com o Back-end:", e);
-        }
-    };
-    init();
+      DashboardService.getStats().then(setStats).catch(console.error);
   }, []);
 
-  const handleTabChange = (tab: string) => {
-      setActiveTab(tab);
-      setActiveCategory('todos');
-      setSearchTerm('');
-      setIsMobileMenuOpen(false);
-  };
+  const totalVendas = stats?.totalVendas || 0; 
+  const criticos = products.filter(p => p.stock <= p.minStock).length;
 
-  // Funções de Conta
-  const handleUpdateProfile = async () => {
-    try {
-        const updatedUser = await UsuarioService.atualizarPerfil({
-            nome: editData.nome,
-            telefone: editData.telefone,
-            email: user.email, // Mantém o email original
-            tipo: "CLIENTE"
-        });
-        
-        setUser(prev => ({ ...prev, nome: updatedUser.nome, telefone: updatedUser.telefone }));
-        setIsEditingProfile(false);
-        alert("Perfil atualizado!");
-    } catch (e) {
-        console.error(e);
-        alert("Erro ao atualizar perfil. Verifique se o backend está rodando.");
-    }
-  };
+  return (
+    <div className="space-y-6 animate-page-transition">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
+        <div><h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100">Painel de Controle</h2><p className="text-sm font-medium text-amber-600 uppercase tracking-widest mt-1">{getCurrentFullDate()}</p></div>
+      </div>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+         <div className="bg-white dark:bg-stone-900 p-5 rounded-3xl border border-stone-100 dark:border-stone-800 hover:shadow-xl transition-all">
+            <div className="flex justify-between items-start mb-4">
+               <div className="bg-green-50 dark:bg-stone-800 p-2.5 rounded-2xl text-green-600"><DollarSign size={22} /></div>
+            </div>
+            <p className="text-stone-400 text-xs font-bold uppercase tracking-wider">Vendas Totais</p>
+            <h3 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mt-1">R$ {formatPrice(totalVendas)}</h3>
+         </div>
+         <div className="bg-white dark:bg-stone-900 p-5 rounded-3xl border border-stone-100 dark:border-stone-800 hover:shadow-xl transition-all">
+            <div className="flex justify-between items-start mb-4">
+               <div className="bg-red-50 dark:bg-stone-800 p-2.5 rounded-2xl text-red-600"><AlertTriangle size={22} /></div>
+            </div>
+            <p className="text-stone-400 text-xs font-bold uppercase tracking-wider">Estoque Crítico</p>
+            <h3 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mt-1">{criticos} Itens</h3>
+         </div>
+         <div className="bg-white dark:bg-stone-900 p-5 rounded-3xl border border-stone-100 dark:border-stone-800 hover:shadow-xl transition-all">
+            <div className="flex justify-between items-start mb-4">
+               <div className="bg-blue-50 dark:bg-stone-800 p-2.5 rounded-2xl text-blue-600"><ClipboardList size={22} /></div>
+            </div>
+            <p className="text-stone-400 text-xs font-bold uppercase tracking-wider">Pedidos Hoje</p>
+            <h3 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mt-1">{stats?.pedidosHoje || 0}</h3>
+         </div>
+         <div className="bg-white dark:bg-stone-900 p-5 rounded-3xl border border-stone-100 dark:border-stone-800 hover:shadow-xl transition-all">
+            <div className="flex justify-between items-start mb-4">
+               <div className="bg-purple-50 dark:bg-stone-800 p-2.5 rounded-2xl text-purple-600"><Package size={22} /></div>
+            </div>
+            <p className="text-stone-400 text-xs font-bold uppercase tracking-wider">Produtos Ativos</p>
+            <h3 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mt-1">{stats?.produtosAtivos || 0}</h3>
+         </div>
+      </div>
+      
+      <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm animate-fade-in">
+          <h3 className="font-bold text-stone-800 dark:text-stone-100 mb-6 flex items-center gap-2"><Package size={20} className="text-red-500" /> Alertas de Estoque Baixo</h3>
+          <div className="space-y-3">
+              {products.filter(p => p.stock <= p.minStock).map((p, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 bg-red-50/50 dark:bg-red-900/10 rounded-2xl border border-red-100 dark:border-red-900/20">
+                    {p.image && <img src={p.image} className="w-10 h-10 rounded-xl object-cover" alt="" />}
+                    <div className="flex-grow">
+                        <p className="text-xs font-bold text-stone-700 dark:text-stone-200">{p.name}</p>
+                        <p className="text-[10px] text-red-500 font-bold uppercase tracking-tight">Estoque: {p.stock} (Mín: {p.minStock})</p>
+                    </div>
+                </div>
+              ))}
+              {criticos === 0 && <p className="text-stone-400 text-sm">Estoque saudável.</p>}
+          </div>
+      </div>
+    </div>
+  );
+};
 
-  const handleAddAddress = async () => {
-    if(!newAddress.logradouro || !newAddress.numero || !newAddress.bairro) {
-        alert("Preencha os campos obrigatórios (Logradouro, Número, Bairro)");
-        return;
-    }
-    try {
-        const updatedUser = await UsuarioService.adicionarEndereco(newAddress);
-        setUser(prev => ({ ...prev, enderecos: updatedUser.enderecos || [] }));
-        setIsAddressFormOpen(false);
-        setNewAddress({ logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'Fortaleza', estado: 'CE', cep: '', tipo: 'Casa' });
-    } catch (e) {
-        console.error(e);
-        alert("Erro ao salvar endereço.");
-    }
-  };
+// Interface para os dados do formulário
+interface ProdutoFormData {
+    name: string;
+    price: string;
+    stock: string;
+    minStock: string;
+    categoryId: string;
+}
 
-  const handleDeleteAddress = async (id: number | undefined) => {
-    if(!id) return;
-    if(!confirm("Remover este endereço?")) return;
-    try {
-        await UsuarioService.removerEndereco(id);
-        // Remove localmente para não precisar recarregar tudo
-        setUser(prev => ({ 
-            ...prev, 
-            enderecos: prev.enderecos.filter(addr => addr.id !== id) 
-        }));
-    } catch (e) {
-        console.error(e);
-        alert("Erro ao remover endereço.");
-    }
-  };
+const ProdutoForm = ({ 
+    categories, 
+    onSave, 
+    onCancel 
+}: { 
+    categories: Categoria[], 
+    onSave: (data: ProdutoFormData, file: File | null) => void, 
+    onCancel: () => void 
+}) => {
+    const [formData, setFormData] = useState<ProdutoFormData>({ name: '', price: '', stock: '50', minStock: '10', categoryId: '' });
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [preview, setPreview] = useState('');
 
-  const addToCart = (product: Produto) => {
-    setCart(prev => {
-      const exists = prev.find(i => i.id === product.id);
-      if (exists) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { ...product, qty: 1 }];
-    });
-    setIsCartOpen(true);
-  };
+    const handleFile = (file: File) => {
+        if(file) {
+            setImageFile(file);
+            setPreview(URL.createObjectURL(file));
+        }
+    };
 
-  const updateQty = (id: number, delta: number) => {
-    setCart(prev => prev.map(i => i.id === id ? { ...i, qty: Math.max(0, i.qty + delta) } : i).filter(i => i.qty > 0));
-  };
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(formData, imageFile);
+    };
 
-  const checkout = async () => {
-      if(cart.length === 0) return;
+    return (
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-xl animate-fade-in-up space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+                <div className="space-y-1"><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Nome</label><input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-3.5 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none focus:ring-2 focus:ring-amber-500" /></div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1"><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Preço</label><input required type="number" step="0.01" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="w-full p-3.5 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none focus:ring-2 focus:ring-amber-500" /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Categoria</label>
+                        <select required value={formData.categoryId} onChange={e => setFormData({...formData, categoryId: e.target.value})} className="w-full p-3.5 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none">
+                            <option value="">Selecione...</option>
+                            {categories.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                        </select>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1"><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Estoque</label><input required type="number" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} className="w-full p-3.5 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none focus:ring-2 focus:ring-amber-500" /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Mínimo</label><input required type="number" value={formData.minStock} onChange={e => setFormData({...formData, minStock: e.target.value})} className="w-full p-3.5 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none focus:ring-2 focus:ring-amber-500" /></div>
+                </div>
+            </div>
+            <div className="space-y-1">
+                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Imagem</label>
+                <div onClick={() => document.getElementById('file-upload')?.click()} className="relative w-full h-full min-h-[200px] border-2 border-dashed border-stone-200 dark:border-stone-700 rounded-2xl flex flex-col items-center justify-center cursor-pointer overflow-hidden bg-stone-50 dark:bg-stone-800 hover:border-amber-500">
+                    {preview ? <img src={preview} className="w-full h-full object-cover" alt="Preview" /> : <div className="text-center"><Upload className="mx-auto mb-1 text-stone-400" size={20} /><p className="text-[10px] font-bold uppercase">Enviar foto</p></div>}
+                    <input id="file-upload" type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files && handleFile(e.target.files[0])} />
+                </div>
+            </div>
+          </div>
+          <div className="flex gap-4">
+              <button type="button" onClick={onCancel} className="flex-1 py-4 rounded-2xl font-bold text-stone-500 bg-stone-100 hover:bg-stone-200">Cancelar</button>
+              <button type="submit" className="flex-1 bg-amber-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-amber-700">Salvar Produto</button>
+          </div>
+        </form>
+    );
+};
+
+const EstoqueGeral = ({ products, onUpdate, categories }: { products: ProdutoUI[], onUpdate: () => void, categories: Categoria[] }) => {
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  const handleSave = async (data: ProdutoFormData, file: File | null) => {
       try {
-          await PedidoService.criar({
-              cliente: user.nome, 
-              tipo: "BALCAO", 
-              itens: cart.map(i => ({ produtoId: i.id, quantidade: i.qty }))
-          });
-          alert("Pedido enviado para a cozinha com sucesso! 🍳");
-          setCart([]);
-          setIsCartOpen(false);
+          await ProdutoService.criar({
+              nome: data.name,
+              descricao: 'Item de estoque',
+              preco: parseFloat(data.price),
+              quantidadeEstoque: parseInt(data.stock),
+              estoqueMinimo: parseInt(data.minStock),
+              categoria: { id: parseInt(data.categoryId) },
+              ativo: true
+          }, file);
+          setIsFormOpen(false);
+          onUpdate();
       } catch (error) {
           console.error(error);
-          alert("Erro ao enviar pedido. Verifique se o Back-end está rodando.");
+          alert('Erro ao salvar produto');
       }
   };
 
-  const handleFeedbackSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      alert(`Obrigado pelo feedback de ${rating} estrelas!`);
-      setRating(0);
-      setHoverRating(0);
-      setFeedbackMsg('');
-  }
-
-  const cartTotal = cart.reduce((acc, item) => acc + (item.preco * item.qty), 0);
-
-  const getFilteredProducts = () => {
-      let filtered = products;
-
-      if (activeTab === 'almoco') {
-          filtered = products.filter(p => 
-              p.categoria?.nome?.toLowerCase()?.includes('almoço') || 
-              p.categoria?.nome?.toLowerCase()?.includes('prato')
-          );
-      } else if (activeTab === 'mercado') {
-          filtered = products.filter(p => 
-              p.categoria?.nome?.toLowerCase()?.includes('mercado') || 
-              p.categoria?.nome?.toLowerCase()?.includes('mercearia') || 
-              p.categoria?.nome?.toLowerCase()?.includes('adega') || 
-              p.categoria?.nome?.toLowerCase()?.includes('laticínios')
-          );
-      } else if (activeTab === 'menu') {
-          filtered = products.filter(p => 
-              !p.categoria?.nome?.toLowerCase()?.includes('mercado') && 
-              !p.categoria?.nome?.toLowerCase()?.includes('encomenda') &&
-              !p.categoria?.nome?.toLowerCase()?.includes('kit')
-          );
-      }
-
-      if (activeCategory !== 'todos') {
-          filtered = filtered.filter(p => p.categoria?.id === activeCategory);
-      }
-
-      if (searchTerm) {
-          filtered = filtered.filter(p => p.nome.toLowerCase().includes(searchTerm.toLowerCase()));
-      }
-
-      return filtered;
+  const handleDelete = async (id: number) => {
+      if(!confirm("Excluir este item?")) return;
+      await ProdutoService.deletar(id);
+      onUpdate();
   };
 
-  const encomendaProducts = products.filter(p => 
-      p.categoria?.nome?.toLowerCase()?.includes('encomenda') || 
-      p.categoria?.nome?.toLowerCase()?.includes('kit') || 
-      p.categoria?.nome?.toLowerCase()?.includes('festa')
+  return (
+    <div className="space-y-6 animate-page-transition">
+      <div className="flex justify-between items-center bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm transition-all hover:shadow-md">
+        <div><h2 className="text-xl font-bold">Gestão de Itens</h2><p className="text-xs text-stone-500">Alimente o estoque geral do sistema.</p></div>
+        <button onClick={() => setIsFormOpen(!isFormOpen)} className="bg-stone-800 dark:bg-amber-600 text-white px-5 py-2.5 rounded-2xl flex items-center gap-2 font-bold shadow-md hover:opacity-90 active:scale-95 transition-all">{isFormOpen ? <X size={18}/> : <PlusCircle size={18} />} {isFormOpen ? 'Fechar' : 'Novo Item'}</button>
+      </div>
+      {isFormOpen && <ProdutoForm categories={categories} onSave={handleSave} onCancel={() => setIsFormOpen(false)} />}
+      
+      <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-100 dark:border-stone-800 overflow-hidden shadow-sm animate-fade-in"><table className="w-full text-left"><thead className="bg-stone-50 dark:bg-stone-800 text-stone-400 text-[10px] font-bold uppercase tracking-widest"><tr><th className="px-6 py-4">Produto</th><th className="px-6 py-4 text-center">Estoque</th><th className="px-6 py-4 text-right">Ações</th></tr></thead><tbody className="divide-y divide-stone-50 dark:divide-stone-800">{products.map(p => (<tr key={p.id} className="hover:bg-stone-50/50 dark:hover:bg-stone-800/50 transition-colors duration-200"><td className="px-6 py-4 flex items-center gap-3"><img src={p.image} className="w-10 h-10 rounded-xl object-cover transition-transform duration-300 hover:scale-125" onError={(e) => e.currentTarget.src = 'https://via.placeholder.com/50'} alt="" /><span className="font-bold text-sm text-stone-700 dark:text-stone-200">{p.name}</span></td><td className="px-6 py-4 text-center font-bold">{p.stock} un</td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><button onClick={() => handleDelete(p.id)} className="p-2 text-stone-300 hover:text-red-500 transition-all"><Trash2 size={16}/></button></div></td></tr>))}</tbody></table></div>
+    </div>
   );
+};
 
-  const displayProducts = getFilteredProducts();
+const GestaoCardapio = ({ products, onUpdate, categories }: { products: ProdutoUI[], onUpdate: () => void, categories: Categoria[] }) => {
+    const bakeryItems = products.filter(p => p.type === 'Padaria');
+    const [isAdding, setIsAdding] = useState(false);
+
+    const handleSave = async (data: ProdutoFormData, file: File | null) => {
+        try {
+            await ProdutoService.criar({
+                nome: data.name,
+                descricao: 'Item de Padaria',
+                preco: parseFloat(data.price),
+                quantidadeEstoque: parseInt(data.stock),
+                estoqueMinimo: parseInt(data.minStock),
+                categoria: { id: parseInt(data.categoryId) },
+                ativo: true
+            }, file);
+            setIsAdding(false);
+            onUpdate();
+        } catch (e) { alert('Erro ao salvar'); }
+    };
+
+    return (
+        <div className="space-y-6 animate-page-transition">
+            <div className="flex justify-between items-center bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-md transition-all">
+                <div><h2 className="text-xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-2"><Coffee className="text-amber-500" size={24} /> Itens de Padaria & Vitrine</h2><p className="text-xs text-stone-500">Pão de queijo, cafés e salgados.</p></div>
+                <button onClick={() => setIsAdding(!isAdding)} className="bg-amber-600 text-white px-5 py-2.5 rounded-2xl flex items-center gap-2 font-bold hover:bg-amber-700 transition-all shadow-lg active:scale-95">{isAdding ? <X size={18} /> : <PlusCircle size={18} />} {isAdding ? 'Cancelar' : 'Novo Item'}</button>
+            </div>
+            {isAdding && <ProdutoForm categories={categories} onSave={handleSave} onCancel={() => setIsAdding(false)} />}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{bakeryItems.map(item => (<div key={item.id} className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden group flex flex-col relative hover:shadow-xl transition-all duration-300 animate-fade-in"><div className="absolute top-0 left-0 h-1.5 w-full bg-amber-500"></div><div className="h-40 relative overflow-hidden"><img src={item.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" onError={(e) => e.currentTarget.src='https://via.placeholder.com/300'} alt="" /><div className="absolute top-3 right-3 bg-white/95 dark:bg-stone-900/95 backdrop-blur-md px-3 py-1.5 rounded-xl font-bold text-amber-700 shadow-sm border border-stone-100 dark:border-stone-800">R$ {formatPrice(item.price)}</div></div><div className="p-5 flex justify-between items-center"><div><h4 className="font-bold text-stone-800 dark:text-stone-100">{item.name}</h4><p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{item.category}</p></div><div className="flex gap-2"><button onClick={async () => { if(confirm('Deletar?')) { await ProdutoService.deletar(item.id); onUpdate(); } }} className="p-3 bg-stone-50 dark:bg-stone-800 text-stone-400 hover:text-red-500 rounded-2xl transition-all"><Trash2 size={18} /></button></div></div></div>))}</div>
+        </div>
+    );
+};
+
+const OrderBoard = ({ orders, onUpdateStatus }: { orders: Pedido[], onUpdateStatus: (id: number) => void }) => {
+  const getStatusLabel = (status: string) => { const labels: Record<string, string> = { 'RECEBIDO': 'Aceitar', 'EM_PREPARO': 'Finalizar', 'PRONTO': 'Entregar', 'ENTREGUE': 'Concluído', 'CANCELADO': 'Cancelado' }; return labels[status] || status; };
+  
+  return (
+    <div className="space-y-6 animate-page-transition"><h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList className="text-blue-500" /> Fila de Preparo</h2><div className="grid grid-cols-1 md:grid-cols-2 gap-6">{orders.filter(o => o.status !== 'ENTREGUE' && o.status !== 'CANCELADO').map(order => (<div key={order.id} className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden p-6 space-y-5 relative transition-all hover:shadow-xl hover:-translate-y-0.5 animate-fade-in"><div className={`absolute top-0 left-0 h-1.5 w-full transition-colors duration-500 ${order.tipo === 'ENCOMENDA' ? 'bg-purple-500' : 'bg-amber-500'}`}></div><div className="flex justify-between items-start pt-2"><div><div className="flex items-center gap-2 mb-0.5"><span className="text-[10px] font-bold text-stone-400 uppercase">#{order.id}</span><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${order.tipo === 'ENCOMENDA' ? 'bg-purple-50 text-purple-600' : 'bg-amber-50 text-amber-600'}`}>{order.tipo}</span></div><h4 className="font-bold text-lg">{order.cliente}</h4></div><span className="text-[10px] font-bold text-stone-400">{new Date(order.dataHora).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div><div className="bg-stone-50 dark:bg-stone-800/50 p-4 rounded-2xl border border-stone-100 dark:border-stone-800"><ul className="space-y-1.5">{order.descricaoItens.map((item, idx) => (<li key={idx} className="flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-stone-300"><div className="w-1 h-1 rounded-full bg-stone-300"></div>{item}</li>))}</ul></div><button onClick={() => onUpdateStatus(order.id)} className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg active:scale-[0.98] transition-all bg-stone-800 hover:bg-stone-700`}>{getStatusLabel(order.status)}</button></div>))}</div></div>
+  );
+};
+
+const RegistrarEncomenda = ({ onAdd }: { onAdd: () => void }) => {
+  const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      // Lógica de encomenda
+      alert("Encomendas em breve");
+      onAdd();
+  };
+  
+  return (
+    <div className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-xl text-center text-stone-500">
+        <Gift className="mx-auto mb-4 text-pink-500" size={32}/>
+        <h3 className="text-xl font-bold text-stone-800">Nova Encomenda</h3>
+        <p className="mb-6">Para registrar encomendas, utilize o menu de Pedidos ou o App do Cliente.</p>
+        <button onClick={handleSubmit} className="bg-pink-500 text-white px-6 py-3 rounded-2xl font-bold">Voltar</button>
+    </div>
+  );
+};
+
+const AgendaEncomendas = ({ commissions }: { commissions: Pedido[] }) => {
+  return (
+    <div className="space-y-6 animate-page-transition">
+        <div className="flex justify-between items-center bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm"><h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="text-pink-500" /> Agenda de Encomendas</h2></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{commissions.map(comm => (
+            <div key={comm.id} className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm p-6 relative overflow-hidden">
+                <div className="absolute top-0 left-0 h-1.5 w-full bg-pink-400"></div>
+                <div className="flex justify-between items-start mb-4"><div><span className="text-[10px] font-bold text-stone-400 uppercase">#{comm.id}</span><h4 className="font-bold text-lg">{comm.cliente}</h4></div></div>
+                <ul className="text-sm text-stone-600 mb-4">{comm.descricaoItens.map((i,idx)=><li key={idx}>• {i}</li>)}</ul>
+                <div className="inline-block bg-pink-50 text-pink-600 px-3 py-1 rounded-lg text-xs font-bold">{comm.status}</div>
+            </div>
+        ))}</div>
+    </div>
+  );
+};
+
+// --- APP PRINCIPAL (ADMIN) ---
+
+export default function AdminApp() {
+  const navigate = useNavigate();
+  const [viewMode, setViewMode] = useState('equipe'); 
+  const [activeTab, setActiveTab] = useState('orders');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Estados de Dados Reais
+  const [products, setProducts] = useState<ProdutoUI[]>([]);
+  const [orders, setOrders] = useState<Pedido[]>([]);
+  const [categories, setCategories] = useState<Categoria[]>([]);
+  
+  // CORREÇÃO: User estava sendo lido mas não usado, removido para limpar erro
+  // const [user, setUser] = useState<Usuario | null>(null);
+
+  // Carregamento de Dados
+  // CORREÇÃO: useCallbak para evitar o erro 'react-hooks/set-state-in-effect'
+  const refreshData = useCallback(async () => {
+      try {
+          const [p, o, c] = await Promise.all([
+              ProdutoService.listarTodos(),
+              PedidoService.listarFila(),
+              CategoriaService.listar(),
+              // UsuarioService.getMe().catch(() => null)
+          ]);
+          setProducts(p.map(mapProdutoToLayout));
+          setOrders(o);
+          setCategories(c);
+          // if(u) setUser(u);
+      } catch (error) {
+          console.error("Erro ao carregar dados:", error);
+      }
+  }, []);
+
+  useEffect(() => {
+      refreshData();
+  }, [refreshData]);
+
+  const handleUpdateOrderStatus = async (id: number) => {
+      await PedidoService.avancarStatus(id);
+      refreshData();
+  };
+
+  const menuItems = useMemo(() => {
+    if (viewMode === 'gestor') { 
+      return [
+        { id: 'dashboard', label: 'Dashboard Geral', icon: BarChart3 }, 
+        { id: 'inventory', label: 'Estoque Central', icon: Package }, 
+        { id: 'categories', label: 'Categorias Mercado', icon: Tags }, 
+        { id: 'feedbacks', label: 'Feedback Clientes', icon: MessageSquare },
+      ]; 
+    }
+    return [
+      { id: 'orders', label: 'Pedidos de Balcão', icon: ClipboardList }, 
+      { id: 'bakery-menu', label: 'Itens Padaria', icon: Coffee }, 
+      { id: 'market-menu', label: 'Mercado', icon: ShoppingBasket }, 
+      { id: 'new-commission', label: 'Nova Encomenda', icon: PlusCircle }, 
+      { id: 'agenda-commissions', label: 'Agenda Encomendas', icon: BookOpen }
+    ];
+  }, [viewMode]);
 
   return (
     <div className={isDarkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 font-sans text-stone-900 dark:text-stone-100 pb-20 md:pb-0 transition-colors duration-300">
-        
-        <header className="fixed top-0 left-0 right-0 z-50 bg-amber-50/95 dark:bg-stone-900/95 backdrop-blur-md shadow-sm border-b border-amber-100 dark:border-stone-800 h-16">
-            <div className="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 -ml-2 rounded-xl text-stone-600 dark:text-stone-300 hover:bg-amber-100 dark:hover:bg-stone-800 transition-colors">
-                        <AlignJustify size={24} />
-                    </button>
-                    <div className="flex items-center gap-2">
-                        <div className="bg-amber-500 p-2 rounded-lg text-white hidden sm:block"><Utensils size={20} /></div>
-                        <h1 className="text-xl font-bold text-amber-900 dark:text-amber-500">Padoca</h1>
-                    </div>
-                </div>
-                <div className="flex gap-3">
-                    <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-full hover:bg-stone-200 dark:hover:bg-stone-800">{isDarkMode ? <Sun size={20}/> : <Moon size={20}/>}</button>
-                    <button onClick={() => setIsCartOpen(true)} className="relative p-2 bg-white dark:bg-stone-800 rounded-full text-amber-800 dark:text-amber-500 shadow-sm hover:scale-105 transition-transform">
-                        <ShoppingBag size={24} />
-                        {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-bounce">{cart.reduce((a,b)=>a+b.qty,0)}</span>}
-                    </button>
-                </div>
+      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 font-sans text-stone-900 dark:text-stone-100 transition-colors duration-500">
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+          @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+          @keyframes pageTransition { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+          .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+          .animate-fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+          .animate-page-transition { animation: pageTransition 0.4s ease-out forwards; }
+          .no-scrollbar::-webkit-scrollbar { display: none; }
+        `}</style>
+
+        <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border-b border-stone-100 dark:border-stone-800 transition-all duration-300">
+          <div className="max-w-[1440px] mx-auto px-6 py-4 flex justify-between items-center">
+            <div className="flex items-center gap-4 group cursor-pointer transition-transform duration-300 active:scale-95">
+                <div className="bg-stone-800 dark:bg-amber-600 p-2 rounded-xl text-white shadow-lg transition-all duration-300 group-hover:rotate-6"><ChefHat size={22} /></div>
+                <div className="hidden sm:block"><h1 className="text-lg font-bold">Padoca Gestão</h1></div>
             </div>
+            <div className="flex items-center gap-3">
+              <div className="bg-stone-100 dark:bg-stone-800 p-1 rounded-2xl flex border border-stone-200 dark:border-stone-700 shadow-inner">
+                <button onClick={() => setViewMode('equipe')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${viewMode === 'equipe' ? 'bg-white dark:bg-stone-700 text-blue-600 shadow-md' : 'text-stone-400 hover:text-stone-600'}`}>Equipe</button>
+                <button onClick={() => setViewMode('gestor')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${viewMode === 'gestor' ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}>Gestor</button>
+              </div>
+              <button onClick={() => { localStorage.clear(); navigate('/'); }} className="p-2.5 rounded-2xl text-red-500 hover:bg-red-50 transition-all" title="Sair"><LogOut size={20}/></button>
+            </div>
+          </div>
         </header>
 
-        <div className={`fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm transition-opacity duration-300 md:hidden ${isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsMobileMenuOpen(false)}/>
-        <div className={`fixed top-0 left-0 z-[61] h-full w-72 bg-white dark:bg-stone-900 shadow-2xl p-6 flex flex-col transition-transform duration-300 ease-out transform md:hidden ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-            <div className="flex justify-between items-center mb-8">
-                <div className="flex items-center gap-2"><div className="bg-amber-500 p-2 rounded-lg text-white"><Utensils size={20} /></div><h1 className="text-xl font-bold text-amber-900 dark:text-amber-500">Menu</h1></div>
-                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-full text-stone-500"><X size={24}/></button>
-            </div>
-            <div className="overflow-y-auto flex-grow custom-scrollbar">
-                <NavigationMenu activeTab={activeTab} onTabChange={handleTabChange} />
-            </div>
-            <div className="pt-6 border-t border-stone-100 dark:border-stone-800"><p className="text-xs text-center text-stone-400">Padoca App v2.0</p></div>
-        </div>
-
-        <div className={`fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isCartOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsCartOpen(false)}/>
-        <div className={`fixed top-0 right-0 z-[61] h-full w-full max-w-md bg-white dark:bg-stone-900 shadow-2xl p-6 flex flex-col transition-transform duration-300 ease-out transform ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-            <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold">Seu Pedido</h2><button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-full transition-colors"><Minus className="rotate-45" size={24}/></button></div>
-            <div className="flex-grow overflow-y-auto space-y-4">{cart.length === 0 ? <p className="text-stone-400 text-center mt-10">Carrinho vazio.</p> : cart.map(item => (<div key={item.id} className="flex justify-between items-center border-b border-stone-100 dark:border-stone-800 pb-4"><div><p className="font-bold">{item.nome}</p><p className="text-sm text-stone-500">R$ {item.preco.toFixed(2)}</p></div><div className="flex items-center gap-3 bg-stone-100 dark:bg-stone-800 rounded-lg p-1"><button onClick={() => updateQty(item.id, -1)} className="p-1 hover:bg-white rounded"><Minus size={16}/></button><span className="font-bold w-4 text-center">{item.qty}</span><button onClick={() => updateQty(item.id, 1)} className="p-1 hover:bg-white rounded"><Plus size={16}/></button></div></div>))}</div>
-            <div className="mt-4 border-t border-stone-100 pt-4"><div className="flex justify-between text-xl font-bold mb-4"><span>Total</span><span>R$ {cartTotal.toFixed(2)}</span></div><button onClick={checkout} disabled={cart.length === 0} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg active:scale-95 transition-all">Confirmar Pedido</button></div>
-        </div>
-
-        <div className="max-w-7xl mx-auto pt-20 px-4 flex flex-col md:flex-row gap-8">
-            <aside className="hidden md:flex flex-col w-64 sticky top-24 h-[calc(100vh-6rem)] overflow-y-auto pr-2 space-y-6 flex-shrink-0 custom-scrollbar">
-                <div className="bg-white dark:bg-stone-900 p-4 rounded-3xl shadow-sm border border-stone-100 dark:border-stone-800 flex-shrink-0">
-                    <h3 className="font-bold text-stone-400 text-xs uppercase tracking-widest mb-4 px-2">Navegação</h3>
-                    <NavigationMenu activeTab={activeTab} onTabChange={handleTabChange} />
+        <main className="max-w-[1440px] mx-auto pt-24 px-6 flex flex-col lg:flex-row gap-8 pb-10">
+          <aside className="w-full lg:w-[300px] flex-shrink-0 space-y-4 lg:sticky lg:top-24 h-fit">
+             <div className="bg-white dark:bg-stone-900 p-4 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm transition-all hover:shadow-md">
+                <div className="space-y-1">
+                   {menuItems.map(item => { const Icon = item.icon; return (<button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 active:scale-95 ${activeTab === item.id ? (viewMode === 'gestor' ? 'bg-stone-800 text-white shadow-xl' : 'bg-blue-600 text-white shadow-xl') : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800 hover:translate-x-1'}`}><Icon size={20}/> {item.label}</button>); })}
                 </div>
-            </aside>
+             </div>
+          </aside>
 
-            <div className="flex-grow pb-10">
-                {['menu', 'almoco', 'mercado'].includes(activeTab) && (
-                    <>
-                        {activeTab === 'mercado' && (
-                            <div className="mb-8 animate-fade-in">
-                                <div className="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-3xl flex items-center gap-4 border border-emerald-100 dark:border-emerald-800 mb-6"><div className="bg-white dark:bg-stone-800 p-3 rounded-full shadow-sm text-emerald-600"><ShoppingBasket size={32} /></div><div><h2 className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">Mercado Padoca</h2><p className="text-emerald-700 dark:text-emerald-300">Leve o sabor da padoca para sua despensa.</p></div></div>
-                                <div className="relative mb-6"><Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400" size={20} /><input type="text" placeholder="Buscar no mercado..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-sm"/></div>
-                                <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar"><button onClick={() => setActiveCategory('todos')} className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold whitespace-nowrap transition-all ${activeCategory === 'todos' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'bg-white dark:bg-stone-900 text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800 border border-stone-100 dark:border-stone-800'}`}><Menu size={18} /> Todos</button>{categories.map(cat => {const Icon = getIcon(cat.nome); return (<button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold whitespace-nowrap transition-all ${activeCategory === cat.id ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'bg-white dark:bg-stone-900 text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800 border border-stone-100 dark:border-stone-800'}`}><Icon size={18} /> {cat.nome}</button>)})}</div>
-                            </div>
-                        )}
-                        
-                        {activeTab !== 'mercado' && (
-                            <div className="mb-6"><h2 className="text-3xl font-bold text-stone-800 dark:text-stone-100">{activeTab === 'menu' ? 'Cardápio Completo' : 'Almoço do Dia'}</h2><p className="text-stone-500 mt-1">Todos os itens disponíveis</p></div>
-                        )}
-
-                        {displayProducts.length === 0 ? (
-                            <div className="bg-amber-50 dark:bg-stone-900 rounded-3xl p-12 text-center border-2 border-dashed border-amber-200 dark:border-stone-700 animate-fade-in flex flex-col items-center justify-center h-64">
-                                <div className="bg-white dark:bg-stone-800 p-4 rounded-full shadow-sm mb-4 animate-bounce"><ChefHat size={48} className="text-amber-500" /></div>
-                                <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-2">Estamos preparando novidades!</h3>
-                                <p className="text-stone-500 max-w-md mx-auto leading-relaxed">Nossa equipe já está cadastrando as delícias desta seção. <br/> Volte em alguns instantes para conferir o que saiu do forno. 🍞</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-                                {displayProducts.map(prod => (
-                                    <div key={prod.id} className="bg-white dark:bg-stone-900 p-4 rounded-3xl shadow-sm hover:shadow-xl transition-all group border border-stone-100 dark:border-stone-800 flex flex-col h-full">
-                                        <div className="h-48 rounded-2xl overflow-hidden mb-4 relative flex-shrink-0">
-                                            <img src={`http://localhost:8080${prod.imagemUrl}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" onError={(e) => e.currentTarget.src = PLACEHOLDER_IMG} />
-                                            {prod.quantidadeEstoque <= 0 && <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-[2px] flex items-center justify-center text-white font-bold uppercase tracking-widest border-2 border-white/20 m-2 rounded-xl">Esgotado</div>}
-                                        </div>
-                                        <div className="flex justify-between items-start mb-2"><h3 className="font-bold text-lg leading-tight text-stone-800 dark:text-stone-100">{prod.nome}</h3><span className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap">R$ {prod.preco.toFixed(2)}</span></div>
-                                        <p className="text-sm text-stone-500 line-clamp-2 mb-4 flex-grow">{prod.descricao}</p>
-                                        <button onClick={() => addToCart(prod)} disabled={prod.quantidadeEstoque <= 0} className="w-full bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 py-3.5 rounded-2xl font-bold hover:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-lg shadow-stone-200 dark:shadow-none">{prod.quantidadeEstoque > 0 ? 'Adicionar ao Pedido' : 'Indisponível'}</button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </>
-                )}
-
-                {activeTab === 'conta' && (
-                    <div className="space-y-6 animate-fade-in max-w-3xl mx-auto">
-                        <div className="bg-stone-100 dark:bg-stone-900 p-6 rounded-3xl flex items-center gap-4">
-                            <div className="bg-white dark:bg-stone-800 p-4 rounded-full shadow-sm"><User size={32} className="text-stone-600 dark:text-stone-300"/></div>
-                            <div>
-                                <h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100">Minha Conta</h2>
-                                <p className="text-stone-500 text-sm">Gerencie seus dados e preferências.</p>
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm relative">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-amber-600 flex items-center gap-2"><User size={18}/> Dados Pessoais</h3>
-                                {!isEditingProfile ? (
-                                    <button onClick={() => { setEditData({ nome: user.nome, telefone: user.telefone || '', email: user.email }); setIsEditingProfile(true); }} className="text-xs font-bold text-stone-400 hover:text-amber-600 flex items-center gap-1"><Pencil size={14}/> Editar</button>
-                                ) : (
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setIsEditingProfile(false)} className="text-xs font-bold text-red-500">Cancelar</button>
-                                        <button onClick={handleUpdateProfile} className="text-xs font-bold text-green-600">Salvar</button>
-                                    </div>
-                                )}
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Nome Completo</p>
-                                    {isEditingProfile ? (
-                                        <input value={editData.nome} onChange={e => setEditData({...editData, nome: e.target.value})} className="w-full p-2 border rounded-lg bg-stone-50 dark:bg-stone-800 dark:border-stone-700" />
-                                    ) : (
-                                        <p className="font-medium text-stone-700 dark:text-stone-200">{user.nome}</p>
-                                    )}
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Telefone</p>
-                                    {isEditingProfile ? (
-                                        <input value={editData.telefone} onChange={e => setEditData({...editData, telefone: e.target.value})} className="w-full p-2 border rounded-lg bg-stone-50 dark:bg-stone-800 dark:border-stone-700" placeholder="(00) 00000-0000"/>
-                                    ) : (
-                                        <p className="font-medium text-stone-700 dark:text-stone-200">{user.telefone || '-'}</p>
-                                    )}
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Email</p>
-                                    <p className="font-medium text-stone-700 dark:text-stone-200">{user.email}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-amber-600 flex items-center gap-2"><MapPin size={18}/> Meus Endereços</h3>
-                                <button onClick={() => setIsAddressFormOpen(!isAddressFormOpen)} className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1">
-                                    {isAddressFormOpen ? <><X size={14}/> Cancelar</> : <><Plus size={14}/> Novo Endereço</>}
-                                </button>
-                            </div>
-
-                            {isAddressFormOpen && (
-                                <div className="bg-stone-50 dark:bg-stone-800 p-4 rounded-2xl mb-6 border border-amber-200 dark:border-stone-700 animate-fade-in">
-                                    <div className="grid grid-cols-2 gap-3 mb-3">
-                                        <input placeholder="CEP" value={newAddress.cep} onChange={e => setNewAddress({...newAddress, cep: e.target.value})} className="p-2 rounded border dark:bg-stone-900 dark:border-stone-700" />
-                                        <input placeholder="Tipo (Casa, Trabalho)" value={newAddress.tipo} onChange={e => setNewAddress({...newAddress, tipo: e.target.value})} className="p-2 rounded border dark:bg-stone-900 dark:border-stone-700" />
-                                        <input placeholder="Logradouro (Rua...)" value={newAddress.logradouro} onChange={e => setNewAddress({...newAddress, logradouro: e.target.value})} className="col-span-2 p-2 rounded border dark:bg-stone-900 dark:border-stone-700" />
-                                        <input placeholder="Número" value={newAddress.numero} onChange={e => setNewAddress({...newAddress, numero: e.target.value})} className="p-2 rounded border dark:bg-stone-900 dark:border-stone-700" />
-                                        <input placeholder="Bairro" value={newAddress.bairro} onChange={e => setNewAddress({...newAddress, bairro: e.target.value})} className="p-2 rounded border dark:bg-stone-900 dark:border-stone-700" />
-                                    </div>
-                                    <button onClick={handleAddAddress} className="w-full bg-amber-600 text-white font-bold py-2 rounded-lg hover:bg-amber-700">Salvar Endereço</button>
-                                </div>
-                            )}
-
-                            <div className="space-y-3">
-                                {user.enderecos && user.enderecos.length > 0 ? user.enderecos.map((addr) => (
-                                    <div key={addr.id} className="flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-700 group hover:border-amber-200 transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 bg-white dark:bg-stone-700 rounded-full flex items-center justify-center text-stone-400">
-                                                {addr.tipo?.toLowerCase() === 'trabalho' ? <Briefcase size={18}/> : <Home size={18}/>}
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-stone-800 dark:text-stone-200 text-sm">{addr.tipo} <span className="font-normal text-stone-400">| {addr.cep}</span></p>
-                                                <p className="text-xs text-stone-500">{addr.logradouro}, {addr.numero} - {addr.bairro}</p>
-                                            </div>
-                                        </div>
-                                        <button onClick={() => handleDeleteAddress(addr.id)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-white dark:hover:bg-stone-700 rounded-lg transition-all opacity-0 group-hover:opacity-100" title="Excluir">
-                                            <X size={16}/>
-                                        </button>
-                                    </div>
-                                )) : (
-                                    <p className="text-stone-400 text-sm text-center py-4">Nenhum endereço cadastrado.</p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
-                            <h3 className="font-bold text-amber-600 flex items-center gap-2 mb-6"><Settings size={18}/> Segurança</h3>
-                            <div className="flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-700">
-                                <div>
-                                    <p className="font-bold text-stone-800 dark:text-stone-200 text-sm">Alteração de Senha</p>
-                                    <p className="text-xs text-stone-500">Recomendamos usar uma senha forte.</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <input type="password" placeholder="Nova Senha" className="p-2 text-sm rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 outline-none focus:border-amber-500" />
-                                    <button className="bg-stone-900 dark:bg-stone-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-amber-600 transition-colors">Salvar</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <Bell className="text-amber-600" size={20}/>
-                                <span className="font-bold text-stone-800 dark:text-stone-100">Receber notificações de promoções</span>
-                            </div>
-                            <div className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${user.notificacoes ? 'bg-amber-500' : 'bg-stone-300'}`} onClick={() => setUser({...user, notificacoes: !user.notificacoes})}>
-                                <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${user.notificacoes ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                            </div>
-                        </div>
-
-                        <button className="w-full text-center text-red-500 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 p-4 rounded-2xl transition-colors flex items-center justify-center gap-2">
-                            <LogOut size={18}/> Sair da Conta
-                        </button>
-                    </div>
-                )}
-
-                {activeTab === 'encomendas' && (
-                    <div className="space-y-12 animate-fade-in"><div className="text-center max-w-2xl mx-auto"><div className="w-16 h-16 bg-pink-100 dark:bg-pink-900/20 rounded-full flex items-center justify-center mx-auto mb-4 text-pink-500"><Gift size={32}/></div><h2 className="text-3xl font-bold mb-2 text-stone-800 dark:text-stone-100">Encomendas Especiais</h2><p className="text-stone-500">Torne sua festa inesquecível com nossos kits exclusivos ou personalize tudo do seu jeito.</p></div>{encomendaProducts.length > 0 && (<div><h3 className="font-bold text-xl text-stone-800 dark:text-stone-100 mb-6 flex items-center gap-2 border-b border-stone-200 dark:border-stone-800 pb-2"><Package size={22} className="text-pink-500"/> Kits Prontos</h3><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">{encomendaProducts.map(prod => (<div key={prod.id} className="bg-white dark:bg-stone-900 p-4 rounded-3xl shadow-sm hover:shadow-xl transition-all group border border-stone-100 dark:border-stone-800 flex flex-col h-full ring-2 ring-transparent hover:ring-pink-100 dark:hover:ring-pink-900/30"><div className="h-48 rounded-2xl overflow-hidden mb-4 relative flex-shrink-0"><img src={`http://localhost:8080${prod.imagemUrl}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" onError={(e) => e.currentTarget.src = PLACEHOLDER_IMG} /></div><div className="flex justify-between items-start mb-2"><h3 className="font-bold text-lg leading-tight text-stone-800 dark:text-stone-100">{prod.nome}</h3><span className="bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400 px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap">R$ {prod.preco.toFixed(2)}</span></div><p className="text-sm text-stone-500 line-clamp-3 mb-4 flex-grow">{prod.descricao}</p><button onClick={() => addToCart(prod)} className="w-full bg-pink-500 text-white py-3.5 rounded-2xl font-bold hover:bg-pink-600 transition-all active:scale-95 shadow-lg shadow-pink-200 dark:shadow-none flex items-center justify-center gap-2"><ShoppingBag size={18} /> Encomendar Kit</button></div>))}</div></div>)}<div className="bg-white dark:bg-stone-900 rounded-[32px] p-8 md:p-12 border border-stone-100 dark:border-stone-800 shadow-xl relative overflow-hidden"><div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none"><PenTool size={180}/></div><div className="flex flex-col md:flex-row gap-8 items-start relative z-10"><div className="md:w-1/3"><div className="bg-pink-100 p-4 rounded-2xl w-fit text-pink-600 mb-4"><PenTool size={32}/></div><h3 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mb-2">Monte do seu jeito</h3><p className="text-stone-500 leading-relaxed">Tem uma ideia específica? Descreva seu pedido, escolha a data e nós preparamos um orçamento especial para você.</p></div><div className="md:w-2/3 w-full bg-stone-50 dark:bg-stone-800/50 p-6 rounded-3xl border border-stone-100 dark:border-stone-700/50"><form className="space-y-5 text-left"><div><label className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-1.5 block">Data da Festa</label><input type="date" className="w-full p-4 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 outline-none focus:ring-2 focus:ring-pink-500/20 transition-all font-medium text-stone-700 dark:text-stone-200"/></div><div><label className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-1.5 block">O que você precisa?</label><textarea className="w-full p-4 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 outline-none h-32 focus:ring-2 focus:ring-pink-500/20 transition-all resize-none font-medium text-stone-700 dark:text-stone-200" placeholder="Ex: Bolo de chocolate para 20 pessoas..."></textarea></div><button type="button" className="w-full bg-stone-800 dark:bg-white text-white dark:text-stone-900 py-4 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg active:scale-98 flex items-center justify-center gap-2"><Send size={18}/> Solicitar Orçamento</button></form></div></div></div></div>
-                )}
-
-                {activeTab === 'sobre' && (
-                    <div className="space-y-6 animate-fade-in"><div className="bg-purple-50 dark:bg-purple-900/20 p-8 rounded-3xl flex items-center gap-6 border border-purple-100 dark:border-purple-800/30"><div className="w-20 h-20 bg-white dark:bg-stone-800 rounded-full flex items-center justify-center text-purple-600 shadow-sm shrink-0"><Info size={32} /></div><div><h2 className="text-2xl font-bold text-purple-900 dark:text-purple-100">Sobre a Padoca</h2><p className="text-purple-700 dark:text-purple-300">Conheça nossa história e fale com a gente.</p></div></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div className="bg-green-50 dark:bg-green-900/10 p-6 rounded-3xl border border-green-100 dark:border-green-900/20 flex items-center gap-4 cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-300"><div className="w-12 h-12 bg-green-200 dark:bg-green-800 rounded-full flex items-center justify-center text-green-700 dark:text-green-100"><MessageCircle size={20} /></div><div><p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">WhatsApp</p><p className="font-bold text-stone-700 dark:text-stone-200">(11) 99999-9999</p></div></div><div className="bg-blue-50 dark:bg-blue-900/10 p-6 rounded-3xl border border-blue-100 dark:border-blue-900/20 flex items-center gap-4 cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-300"><div className="w-12 h-12 bg-blue-200 dark:bg-blue-800 rounded-full flex items-center justify-center text-blue-700 dark:text-blue-100"><Phone size={20} /></div><div><p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Telefone</p><p className="font-bold text-stone-700 dark:text-stone-200">(11) 3333-3333</p></div></div><div className="bg-purple-50 dark:bg-purple-900/10 p-6 rounded-3xl border border-purple-100 dark:border-purple-900/20 flex items-center gap-4 cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-300"><div className="w-12 h-12 bg-purple-200 dark:bg-purple-800 rounded-full flex items-center justify-center text-purple-700 dark:text-purple-100"><Mail size={20} /></div><div><p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest">E-mail</p><p className="font-bold text-stone-700 dark:text-stone-200">contato@padoca.com</p></div></div></div><div className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-stone-100 dark:border-stone-800"><h3 className="font-bold text-lg text-stone-800 dark:text-stone-100 flex items-center gap-2 mb-6"><Utensils className="text-amber-500" /> Nossa História</h3><div className="flex flex-col md:flex-row gap-8 items-start"><img src="https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=600&q=80" alt="História" className="w-full md:w-1/3 rounded-2xl object-cover h-48 shadow-md" onError={(e) => e.currentTarget.src = PLACEHOLDER_IMG}/><div className="space-y-4 text-stone-600 dark:text-stone-300 text-sm leading-relaxed"><p>A <strong>Padoca</strong> nasceu do sonho de trazer o verdadeiro sabor do pão artesanal para a mesa das famílias.</p><p>Hoje, somos referência em confeitaria e refeições caseiras.</p><p className="text-amber-600 font-medium">"Aqui, cada fornada é feita com amor e dedicação."</p></div></div></div><div className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm"><div className="flex items-start gap-4 mb-6"><div className="text-amber-500"><MessageCircle size={24}/></div><div><h3 className="font-bold text-lg text-stone-800 dark:text-stone-100">Deixe seu Feedback</h3><p className="text-stone-500 text-sm">O que você achou dos nossos produtos e atendimento?</p></div></div><form onSubmit={handleFeedbackSubmit} className="space-y-6"><div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2 block">Sua Avaliação</label><div className="flex gap-2">{[1, 2, 3, 4, 5].map((star) => (<button key={star} type="button" onClick={() => setRating(star)} onMouseEnter={() => setHoverRating(star)} onMouseLeave={() => setHoverRating(0)} className="focus:outline-none transition-transform duration-200 hover:scale-125"><Star size={32} className={`transition-colors duration-200 ${star <= (hoverRating || rating) ? 'fill-amber-400 text-amber-400' : 'text-stone-200 dark:text-stone-700'}`} /></button>))}</div></div><div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2 block">Mensagem (Opcional)</label><textarea value={feedbackMsg} onChange={(e) => setFeedbackMsg(e.target.value)} className="w-full p-4 rounded-2xl bg-stone-50 dark:bg-stone-800 border-none outline-none focus:ring-2 focus:ring-amber-500/20 transition-all text-sm h-32 resize-none" placeholder="Conte-nos sua experiência..."></textarea></div><button type="submit" disabled={rating === 0} className="bg-amber-600 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg active:scale-95"><Send size={18} /> Enviar Opinião</button></form></div></div>
-                )}
-
-                {activeTab === 'fidelidade' && (
-                    <div className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-3xl p-8 text-white shadow-lg animate-fade-in relative overflow-hidden"><div className="absolute top-0 right-0 p-10 opacity-10"><Star size={120}/></div><h2 className="text-3xl font-bold mb-2">Clube Padoca</h2><p className="text-amber-100 text-lg mb-8">Acumule pontos e troque por delícias!</p><div className="bg-white/20 rounded-2xl p-6 backdrop-blur-sm max-w-sm"><p className="text-xs font-bold uppercase tracking-widest mb-1">Seu Saldo</p><p className="text-4xl font-bold">0 Pontos</p><div className="w-full bg-black/20 h-2 rounded-full mt-4"><div className="bg-white h-2 rounded-full w-0"></div></div><p className="text-xs mt-2">Faça seu primeiro pedido para pontuar!</p></div></div>
-                )}
-
-                {activeTab === 'pedidos' && (
-                    <div className="bg-white dark:bg-stone-900 rounded-3xl p-10 text-center border border-dashed border-stone-300 dark:border-stone-700 animate-fade-in"><Clock size={48} className="mx-auto text-stone-300 mb-4" /><p className="text-stone-500 font-medium">Você ainda não tem pedidos recentes.</p><button onClick={() => setActiveTab('menu')} className="mt-4 px-6 py-2 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600">Fazer Pedido Agora</button></div>
-                )}
-
-            </div>
-        </div>
+          <div className="flex-grow transition-all duration-500">
+            {viewMode === 'gestor' ? (
+              <>
+                {activeTab === 'dashboard' && <DashboardGestor products={products} />}
+                {activeTab === 'inventory' && <EstoqueGeral products={products} onUpdate={refreshData} categories={categories} />}
+                {activeTab === 'categories' && <GestaoCategorias categories={categories} onUpdate={refreshData} />}
+                {activeTab === 'feedbacks' && <GestaoFeedback />}
+              </>
+            ) : (
+              <>
+                {activeTab === 'orders' && <OrderBoard orders={orders} onUpdateStatus={handleUpdateOrderStatus} />}
+                {activeTab === 'bakery-menu' && <GestaoCardapio products={products} onUpdate={refreshData} categories={categories} />}
+                {activeTab === 'market-menu' && <GestaoCardapio products={products.filter(p => p.type === 'Mercado')} onUpdate={refreshData} categories={categories} />} {/* Reutilizando Cardapio mas filtrado */}
+                {activeTab === 'new-commission' && <RegistrarEncomenda onAdd={() => setActiveTab('agenda-commissions')} />}
+                {activeTab === 'agenda-commissions' && <AgendaEncomendas commissions={orders.filter(o => o.tipo === 'ENCOMENDA')} />}
+              </>
+            )}
+          </div>
+        </main>
       </div>
     </div>
   );
