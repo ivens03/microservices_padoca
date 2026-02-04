@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import mba.ivens.padoca.modules.usuarios.dto.EnderecoDTO;
 import mba.ivens.padoca.modules.usuarios.dto.UsuarioRequestDTO;
 import mba.ivens.padoca.modules.usuarios.dto.UsuarioResponseDTO;
 import mba.ivens.padoca.modules.usuarios.service.UsuarioService;
@@ -66,5 +67,27 @@ public class UsuarioController {
     public ResponseEntity<UsuarioResponseDTO> getMe() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(service.buscarPorEmail(email));
+    }
+
+    @Operation(summary = "Atualizar Perfil", description = "Atualiza nome e telefone do usuário logado.")
+    @PutMapping("/me")
+    public ResponseEntity<UsuarioResponseDTO> atualizarPerfil(@RequestBody UsuarioRequestDTO dto) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(service.atualizarPerfil(email, dto.nome(), dto.telefone()));
+    }
+
+    @Operation(summary = "Adicionar Endereço", description = "Adiciona um novo endereço ao usuário logado.")
+    @PostMapping("/me/enderecos")
+    public ResponseEntity<UsuarioResponseDTO> adicionarEndereco(@RequestBody EnderecoDTO dto) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(service.adicionarEndereco(email, dto));
+    }
+
+    @Operation(summary = "Remover Endereço", description = "Remove um endereço do usuário logado.")
+    @DeleteMapping("/me/enderecos/{id}")
+    public ResponseEntity<Void> removerEndereco(@PathVariable Long id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        service.removerEndereco(email, id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,5 +1,15 @@
-import type { Categoria, CategoriaDTO, Produto, DashboardStats, Pedido, 
-    Usuario, UsuarioDTO, LoginDTO, LoginResponseDTO } from "../types";
+import type { 
+    Categoria, 
+    CategoriaDTO, 
+    Produto, 
+    DashboardStats, 
+    Pedido, 
+    Usuario, 
+    UsuarioDTO, 
+    LoginDTO, 
+    LoginResponseDTO,
+    Endereco
+} from "../types";
 
 const API_BASE = "http://localhost:8080/api";
 
@@ -89,6 +99,7 @@ export const PedidoService = {
 };
 
 export const UsuarioService = {
+    // --- Métodos Administrativos ---
     listar: async (): Promise<Usuario[]> => {
         const res = await fetch(`${API_BASE}/usuarios`);
         if (!res.ok) return [];
@@ -114,6 +125,8 @@ export const UsuarioService = {
     deletar: async (id: number) => {
         await fetch(`${API_BASE}/usuarios/${id}`, { method: 'DELETE' });
     },
+
+    // --- Métodos do Próprio Usuário (Perfil e Endereços) ---
     getMe: async (): Promise<Usuario> => {
         const token = localStorage.getItem('padoca_token');
         if (!token) throw new Error("Usuário não autenticado.");
@@ -128,6 +141,54 @@ export const UsuarioService = {
 
         if (!res.ok) throw new Error("Erro ao carregar perfil.");
         return res.json();
+    },
+
+    atualizarPerfil: async (dados: { nome: string, telefone: string, email: string, tipo: string, senha?: string }) => {
+        const token = localStorage.getItem('padoca_token');
+        
+        // Garante que os campos obrigatórios do DTO Backend sejam preenchidos
+        const payload = {
+            ...dados,
+            senha: dados.senha || "nao_alterar", 
+            tipo: dados.tipo || "CLIENTE"
+        };
+
+        const res = await fetch(`${API_BASE}/usuarios/me`, {
+            method: "PUT",
+            headers: { 
+                "Content-Type": "application/json", 
+                "Authorization": `Bearer ${token}` 
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) throw new Error("Erro ao atualizar perfil");
+        return res.json();
+    },
+
+    adicionarEndereco: async (endereco: Omit<Endereco, 'id'>) => {
+        const token = localStorage.getItem('padoca_token');
+        const res = await fetch(`${API_BASE}/usuarios/me/enderecos`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json", 
+                "Authorization": `Bearer ${token}` 
+            },
+            body: JSON.stringify(endereco)
+        });
+        
+        if (!res.ok) throw new Error("Erro ao adicionar endereço");
+        return res.json();
+    },
+
+    removerEndereco: async (id: number) => {
+        const token = localStorage.getItem('padoca_token');
+        const res = await fetch(`${API_BASE}/usuarios/me/enderecos/${id}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error("Erro ao remover endereço");
     }
 };
 

@@ -4,10 +4,13 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import mba.ivens.padoca.config.exception.exeption.BusinessException;
+import mba.ivens.padoca.modules.usuarios.dto.EnderecoDTO;
 import mba.ivens.padoca.modules.usuarios.dto.UsuarioRequestDTO;
 import mba.ivens.padoca.modules.usuarios.dto.UsuarioResponseDTO;
 import mba.ivens.padoca.modules.usuarios.dtoMapper.UsuarioMapper;
+import mba.ivens.padoca.modules.usuarios.model.Endereco;
 import mba.ivens.padoca.modules.usuarios.model.Usuario;
+import mba.ivens.padoca.modules.usuarios.repository.EnderecoRepository;
 import mba.ivens.padoca.modules.usuarios.repository.UsuarioRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -24,12 +27,11 @@ public class UsuarioService implements UserDetailsService {
     private final UsuarioRepository repository;
     private final UsuarioMapper mapper;
     private final PasswordEncoder passwordEncoder;
+    private final EnderecoRepository enderecoRepository;
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        return repository.findAll().stream()
-                .filter(u -> u.getEmail().equals(email))
-                .findFirst()
+        return repository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado com e-mail: " + email));
     }
 
@@ -38,7 +40,7 @@ public class UsuarioService implements UserDetailsService {
         if (repository.existsByEmail(dto.email())) {
             throw new BusinessException("Já existe um usuário cadastrado com este e-mail.");
         }
-        if (dto.cpf() != null && repository.existsByCpf(dto.cpf())) {
+        if (dto.cpf() != null && !dto.cpf().isBlank() && repository.existsByCpf(dto.cpf())) {
             throw new BusinessException("Já existe um usuário cadastrado com este CPF.");
         }
         Usuario novoUsuario = mapper.toEntity(dto);
@@ -75,11 +77,55 @@ public class UsuarioService implements UserDetailsService {
     }
 
     public UsuarioResponseDTO buscarPorEmail(String email) {
-        Usuario usuario = repository.findAll().stream()
-                .filter(u -> u.getEmail().equals(email))
-                .findFirst()
+        Usuario usuario = repository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
         return mapper.toResponse(usuario);
+    }
+
+    @Transactional
+    public UsuarioResponseDTO atualizarPerfil(String email, String nome, String telefone) {
+        Usuario usuario = repository.findAll().stream()
+                .filter(u -> u.getEmail().equals(email)).findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
+
+        usuario.setNome(nome);
+        usuario.setTelefone(telefone);
+
+        return mapper.toResponse(repository.save(usuario));
+    }
+
+    @Transactional
+    public UsuarioResponseDTO adicionarEndereco(String email, EnderecoDTO dto) {
+        Usuario usuario = repository.findAll().stream()
+                .filter(u -> u.getEmail().equals(email)).findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
+        Endereco end = new Endereco();
+        end.setLogradouro(dto.logradouro());
+        end.setNumero(dto.numero());
+        end.setComplemento(dto.complemento());
+        end.setBairro(dto.bairro());
+        end.setCidade(dto.cidade());
+        end.setEstado(dto.estado());
+        end.setCep(dto.cep());
+        end.setTipo(dto.tipo());
+        end.setUsuario(usuario);
+        usuario.getEnderecos().add(end);
+        repository.save(usuario);
+        return mapper.toResponse(usuario);
+    }
+
+    @Transactional
+    public void removerEndereco(String email, Long enderecoId) {
+        Usuario usuario = repository.findAll().stream()
+                .filter(u -> u.getEmail().equals(email)).findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
+        Endereco endereco = enderecoRepository.findById(enderecoId)
+                .orElseThrow(() -> new EntityNotFoundException("Endereço não encontrado"));
+        if (!endereco.getUsuario().getId().equals(usuario.getId())) {
+            throw new BusinessException("Você não tem permissão para excluir este endereço.");
+        }
+        usuario.getEnderecos().remove(endereco);
+        enderecoRepository.delete(endereco);
     }
 
 }

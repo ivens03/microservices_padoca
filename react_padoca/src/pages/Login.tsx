@@ -29,31 +29,41 @@ export function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setErrorMsg(''); 
+    console.log("Tentando fazer login..."); // DEBUG
 
     try {
-        const response = await AuthService.login({
-            email: formData.email,
-            senha: formData.password
-        });
+      const data = await AuthService.login({ 
+          email: formData.email, 
+          senha: formData.password 
+      });
+      
+      console.log("Resposta do Login:", data); // DEBUG: Veja o que chega aqui no console do navegador (F12)
 
-        localStorage.setItem('padoca_token', response.token);
-        localStorage.setItem('padoca_user', JSON.stringify(response));
+      if (!data || !data.token) {
+          throw new Error("Token não recebido");
+      }
+      
+      localStorage.setItem('padoca_token', data.token);
+      localStorage.setItem('padoca_user', JSON.stringify(data.usuario));
 
-        if (response.tipo === 'CLIENTE') {
-            navigate('/app');
-        } else {
-            navigate('/admin');
-        }
+      // Verificação robusta
+      const tipoUsuario = data.usuario?.tipo;
+      console.log("Tipo do usuário:", tipoUsuario); // DEBUG
+
+      if (tipoUsuario === 'CLIENTE') {
+        console.log("Navegando para /client"); // DEBUG
+        navigate('/app');
+      } else if (tipoUsuario === 'ADMIN' || tipoUsuario === 'GESTOR' || tipoUsuario === 'FUNCIONARIO') {
+        console.log("Navegando para /admin"); // DEBUG
+        navigate('/admin');
+      } else {
+        console.warn("Tipo de usuário desconhecido ou indefinido:", tipoUsuario);
+        alert("Erro: Tipo de usuário não reconhecido.");
+      }
+
     } catch (error) {
-        if (error instanceof Error) {
-             setErrorMsg(error.message);
-        } else {
-             setErrorMsg("Erro desconhecido ao tentar fazer login.");
-        }
-    } finally {
-        setLoading(false);
+      console.error("Erro no login:", error);
+      alert("Login falhou! Verifique o console (F12) para detalhes.");
     }
   };
 

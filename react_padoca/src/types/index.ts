@@ -25,43 +25,60 @@ export interface Pedido {
     id: number;
     cliente: string;
     status: string;
-    tipo: string;
+    tipo: 'BALCAO' | 'ENCOMENDA'; // Adicionado para evitar erro de tipo
     total: number;
     dataHora: string;
     descricaoItens: string[];
 }
 
 export interface DashboardStats {
-    totalVendasHoje: number;
-    itensCriticos: number;
-    filaPedidos: number;
-    lucroMedio: number;
+    totalVendas: number;
+    pedidosHoje: number;
+    produtosAtivos: number;
+    faturamentoMensal: number;
+}
+
+export interface Endereco {
+    id?: number;
+    logradouro: string;
+    numero: string;
+    complemento?: string;
+    bairro: string;
+    cidade: string;
+    estado: string;
+    cep: string;
+    tipo: string; // "Casa", "Trabalho"
 }
 
 export interface Usuario {
     id: number;
     nome: string;
     email: string;
-    tipo: 'GESTOR' | 'FUNCIONARIO' | 'CLIENTE'; // Era 'cargo', mudamos para 'tipo'
+    telefone?: string;
+    tipo: 'GESTOR' | 'FUNCIONARIO' | 'CLIENTE' | 'ADMIN' | 'ENTREGADOR';
     ativo: boolean;
     cpf?: string;
+    enderecos: Endereco[];
+    dataCriacao: string; // Adicionado para o AdminApp
 }
 
 export interface UsuarioDTO {
     nome: string;
     email: string;
     senha?: string;
-    tipo: 'GESTOR' | 'FUNCIONARIO' | 'CLIENTE'; // Era 'cargo', mudamos para 'tipo'
     cpf?: string;
+    telefone?: string;
+    tipo: string;
+    cargo?: string;
+    matricula?: string;
 }
 
 export interface LoginDTO {
     email: string;
-    senha?: string;
+    senha: string;
 }
 
 export interface LoginResponseDTO {
     token: string;
-    nome: string;
-    tipo: 'CLIENTE' | 'FUNCIONARIO' | 'GESTOR';
+    usuario: Usuario; // Agora retorna o objeto completo
 }
