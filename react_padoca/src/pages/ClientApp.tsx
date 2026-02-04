@@ -5,12 +5,47 @@ import {
   Gift, Star, Info, MessageCircle, Phone, Mail, Send, UtensilsCrossed, Search,
   Package, PenTool, X, AlignJustify, ChefHat, MapPin, Home, Briefcase, Lock, LogOut, Bell, Pencil, Settings
 } from 'lucide-react';
-import { ProdutoService, PedidoService, CategoriaService } from '../services/api';
+import { ProdutoService, PedidoService, CategoriaService, UsuarioService } from '../services/api';
 import type { Produto, Categoria } from '../types';
 
 interface CartItem extends Produto {
     qty: number;
 }
+
+// --- Componente Extraído para evitar recriação no render ---
+interface NavigationMenuProps {
+    activeTab: string;
+    onTabChange: (tab: string) => void;
+}
+
+const NavigationMenu = ({ activeTab, onTabChange }: NavigationMenuProps) => (
+    <nav className="space-y-1">
+        <button onClick={() => onTabChange('menu')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'menu' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
+            <Menu size={20}/> Cardápio
+        </button>
+        <button onClick={() => onTabChange('almoco')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'almoco' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
+            <UtensilsCrossed size={20}/> Almoço
+        </button>
+        <button onClick={() => onTabChange('mercado')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'mercado' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
+            <ShoppingBasket size={20}/> Mercado
+        </button>
+        <button onClick={() => onTabChange('encomendas')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'encomendas' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
+            <Gift size={20}/> Encomendas
+        </button>
+        <button onClick={() => onTabChange('fidelidade')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'fidelidade' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
+            <Star size={20}/> Fidelidade
+        </button>
+        <button onClick={() => onTabChange('pedidos')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'pedidos' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
+            <Clock size={20}/> Meus Pedidos
+        </button>
+        <button onClick={() => onTabChange('conta')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'conta' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
+            <User size={20}/> Conta
+        </button>
+        <button onClick={() => onTabChange('sobre')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'sobre' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
+            <Info size={20}/> Sobre
+        </button>
+    </nav>
+);
 
 const getIcon = (nome: string) => {
     const n = nome.toLowerCase();
@@ -40,16 +75,14 @@ export default function ClientApp() {
   const [hoverRating, setHoverRating] = useState(0);
   const [feedbackMsg, setFeedbackMsg] = useState('');
 
-  // Estado do Usuário (Simulando dados que virão do endpoint /api/usuarios/me)
+  // Estado do Usuário
   const [user, setUser] = useState({
-      nome: "João Cliente",
-      email: "joao@exemplo.com",
-      telefone: "(11) 98765-4321",
-      membroDesde: "Jan 2024",
+      nome: "Carregando...",
+      email: "...",
+      telefone: "(Cadastre seu telefone)",
+      membroDesde: "...",
       enderecos: [
-          { id: 1, tipo: 'Casa', logradouro: 'Rua das Flores, 123', icone: Home },
-          { id: 2, tipo: 'Trabalho', logradouro: 'Av. Paulista, 1000 - Sala 10', icone: Briefcase },
-          { id: 3, tipo: 'Retirada', logradouro: 'Loja Padoca, Matriz', icone: ShoppingBag }
+          { id: 1, tipo: 'Casa', logradouro: 'Cadastre seu endereço', icone: Home }
       ],
       notificacoes: true
   });
@@ -57,13 +90,30 @@ export default function ClientApp() {
   useEffect(() => {
     const init = async () => {
         try {
+            // 1. Carrega dados públicos
             const [p, c] = await Promise.all([
                 ProdutoService.listarTodos(),
                 CategoriaService.listar()
             ]);
             setProducts(p);
             setCategories(c);
-            // Aqui você chamaria: const u = await UsuarioService.getMe(); setUser(u);
+
+            // 2. Carrega dados do usuário logado
+            try {
+                const usuarioReal = await UsuarioService.getMe();
+                
+                const dataMembro = new Date().toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+
+                setUser(prev => ({
+                    ...prev,
+                    nome: usuarioReal.nome,
+                    email: usuarioReal.email,
+                    membroDesde: dataMembro 
+                }));
+            } catch (authError) {
+                console.warn("Usuário não logado ou token expirado.", authError);
+            }
+
         } catch (e) {
             console.error("Erro de conexão com o Back-end:", e);
         }
@@ -71,11 +121,14 @@ export default function ClientApp() {
     init();
   }, []);
 
-  useEffect(() => {
+  // --- Função centralizada para troca de abas (Resolve o setState-in-effect) ---
+  const handleTabChange = (tab: string) => {
+      setActiveTab(tab);
+      // Reseta filtros ao trocar de aba (substitui o useEffect antigo)
       setActiveCategory('todos');
       setSearchTerm('');
       setIsMobileMenuOpen(false);
-  }, [activeTab]);
+  };
 
   const addToCart = (product: Produto) => {
     setCart(prev => {
@@ -94,7 +147,7 @@ export default function ClientApp() {
       if(cart.length === 0) return;
       try {
           await PedidoService.criar({
-              cliente: user.nome, // Usando nome do usuário logado
+              cliente: user.nome, 
               tipo: "BALCAO", 
               itens: cart.map(i => ({ produtoId: i.id, quantidade: i.qty }))
           });
@@ -151,35 +204,6 @@ export default function ClientApp() {
 
   const displayProducts = getFilteredProducts();
 
-  const NavigationMenu = () => (
-      <nav className="space-y-1">
-          <button onClick={() => setActiveTab('menu')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'menu' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-              <Menu size={20}/> Cardápio
-          </button>
-          <button onClick={() => setActiveTab('almoco')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'almoco' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-              <UtensilsCrossed size={20}/> Almoço
-          </button>
-          <button onClick={() => setActiveTab('mercado')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'mercado' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-              <ShoppingBasket size={20}/> Mercado
-          </button>
-          <button onClick={() => setActiveTab('encomendas')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'encomendas' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-              <Gift size={20}/> Encomendas
-          </button>
-          <button onClick={() => setActiveTab('fidelidade')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'fidelidade' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-              <Star size={20}/> Fidelidade
-          </button>
-          <button onClick={() => setActiveTab('pedidos')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'pedidos' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-              <Clock size={20}/> Meus Pedidos
-          </button>
-          <button onClick={() => setActiveTab('conta')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'conta' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-              <User size={20}/> Conta
-          </button>
-          <button onClick={() => setActiveTab('sobre')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'sobre' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-              <Info size={20}/> Sobre
-          </button>
-      </nav>
-  );
-
   return (
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950 font-sans text-stone-900 dark:text-stone-100 pb-20 md:pb-0 transition-colors duration-300">
@@ -213,7 +237,10 @@ export default function ClientApp() {
                 <div className="flex items-center gap-2"><div className="bg-amber-500 p-2 rounded-lg text-white"><Utensils size={20} /></div><h1 className="text-xl font-bold text-amber-900 dark:text-amber-500">Menu</h1></div>
                 <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-full text-stone-500"><X size={24}/></button>
             </div>
-            <div className="overflow-y-auto flex-grow custom-scrollbar"><NavigationMenu /></div>
+            {/* CORREÇÃO: Uso do componente extraído */}
+            <div className="overflow-y-auto flex-grow custom-scrollbar">
+                <NavigationMenu activeTab={activeTab} onTabChange={handleTabChange} />
+            </div>
             <div className="pt-6 border-t border-stone-100 dark:border-stone-800"><p className="text-xs text-center text-stone-400">Padoca App v2.0</p></div>
         </div>
 
@@ -229,7 +256,8 @@ export default function ClientApp() {
             <aside className="hidden md:flex flex-col w-64 sticky top-24 h-[calc(100vh-6rem)] overflow-y-auto pr-2 space-y-6 flex-shrink-0 custom-scrollbar">
                 <div className="bg-white dark:bg-stone-900 p-4 rounded-3xl shadow-sm border border-stone-100 dark:border-stone-800 flex-shrink-0">
                     <h3 className="font-bold text-stone-400 text-xs uppercase tracking-widest mb-4 px-2">Navegação</h3>
-                    <NavigationMenu />
+                    {/* CORREÇÃO: Uso do componente extraído */}
+                    <NavigationMenu activeTab={activeTab} onTabChange={handleTabChange} />
                 </div>
             </aside>
 

@@ -12,6 +12,7 @@ import mba.ivens.padoca.modules.usuarios.dto.UsuarioResponseDTO;
 import mba.ivens.padoca.modules.usuarios.service.UsuarioService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -53,10 +54,17 @@ public class UsuarioController {
             @ApiResponse(responseCode = "200", description = "Usuário encontrado"),
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado ou inativo")
     })
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9]+}")
     public ResponseEntity<UsuarioResponseDTO> buscarPorId(
             @Parameter(description = "ID do usuário", required = true)
             @PathVariable Long id) {
         return ResponseEntity.ok(service.buscarPorAtivoPorId(id));
+    }
+
+    @Operation(summary = "Dados do usuário logado", description = "Retorna os dados do usuário autenticado via Token.")
+    @GetMapping("/me")
+    public ResponseEntity<UsuarioResponseDTO> getMe() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(service.buscarPorEmail(email));
     }
 }

@@ -25,7 +25,6 @@ public class UsuarioService implements UserDetailsService {
     private final UsuarioMapper mapper;
     private final PasswordEncoder passwordEncoder;
 
-    // --- Método obrigatório para o Login funcionar ---
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         return repository.findAll().stream()
@@ -36,23 +35,15 @@ public class UsuarioService implements UserDetailsService {
 
     @Transactional
     public UsuarioResponseDTO criarUsuario(UsuarioRequestDTO dto) {
-        // Validações
         if (repository.existsByEmail(dto.email())) {
             throw new BusinessException("Já existe um usuário cadastrado com este e-mail.");
         }
-        // Verifica se CPF existe (considerando validação nula para evitar erro se não vier)
         if (dto.cpf() != null && repository.existsByCpf(dto.cpf())) {
             throw new BusinessException("Já existe um usuário cadastrado com este CPF.");
         }
-
         Usuario novoUsuario = mapper.toEntity(dto);
-
-        // --- CRUCIAL: Criptografa a senha antes de salvar ---
-        // Sem isso, o login falha pois a senha no banco fica "123456" e o sistema espera um Hash.
         novoUsuario.setSenha(passwordEncoder.encode(dto.senha()));
-
         Usuario usuarioSalvo = repository.save(novoUsuario);
-
         return mapper.toResponse(usuarioSalvo);
     }
 
@@ -82,4 +73,13 @@ public class UsuarioService implements UserDetailsService {
         usuario.setAtivo(false);
         repository.save(usuario);
     }
+
+    public UsuarioResponseDTO buscarPorEmail(String email) {
+        Usuario usuario = repository.findAll().stream()
+                .filter(u -> u.getEmail().equals(email))
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
+        return mapper.toResponse(usuario);
+    }
+
 }

@@ -104,7 +104,6 @@ export const UsuarioService = {
             const errorText = await res.text();
             try {
                 const errorJson = JSON.parse(errorText);
-                // Retorna mensagem do back ou genérica
                 throw new Error(errorJson.message || "Erro ao salvar usuário");
             } catch { 
                 throw new Error(errorText || "Erro ao salvar usuário");
@@ -114,6 +113,21 @@ export const UsuarioService = {
     },
     deletar: async (id: number) => {
         await fetch(`${API_BASE}/usuarios/${id}`, { method: 'DELETE' });
+    },
+    getMe: async (): Promise<Usuario> => {
+        const token = localStorage.getItem('padoca_token');
+        if (!token) throw new Error("Usuário não autenticado.");
+
+        const res = await fetch(`${API_BASE}/usuarios/me`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        if (!res.ok) throw new Error("Erro ao carregar perfil.");
+        return res.json();
     }
 };
 
