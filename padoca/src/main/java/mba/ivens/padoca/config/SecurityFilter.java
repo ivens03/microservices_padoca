@@ -29,11 +29,14 @@ public class SecurityFilter extends OncePerRequestFilter {
             var login = tokenService.validateToken(token);
 
             if (!login.isEmpty()) {
-                UserDetails user = usuarioRepository.findAll().stream()
-                        .filter(u -> u.getEmail().equals(login))
-                        .findFirst()
-                        .orElse(null);
+                // CORREÇÃO: Usando findByEmail em vez de findAll() stream
+                UserDetails user = usuarioRepository.findByEmail(login).orElse(null);
+
                 if (user != null) {
+                    // LOG DE DEBUG: Veja isso no console do IntelliJ quando der erro 403!
+                    System.out.println(">>> USUÁRIO AUTENTICADO: " + login);
+                    System.out.println(">>> AUTHORITIES CARREGADAS: " + user.getAuthorities());
+
                     var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }

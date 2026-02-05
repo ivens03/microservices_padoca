@@ -13,9 +13,28 @@ import type {
 
 const API_BASE = "http://localhost:8080/api";
 
+// Função auxiliar para pegar o cabeçalho com token
+const getAuthHeader = () => {
+    const token = localStorage.getItem('padoca_token');
+    return {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+    };
+};
+
+// Função para upload de arquivos (não usa Content-Type json)
+const getUploadHeader = () => {
+    const token = localStorage.getItem('padoca_token');
+    return {
+        "Authorization": `Bearer ${token}`
+    };
+};
+
 export const DashboardService = {
   getStats: async (): Promise<DashboardStats> => {
-    const res = await fetch(`${API_BASE}/dashboard/stats`);
+    const res = await fetch(`${API_BASE}/dashboard/stats`, {
+        headers: getAuthHeader()
+    });
     if (!res.ok) throw new Error("Erro ao carregar dashboard");
     return res.json();
   }
@@ -30,21 +49,25 @@ export const CategoriaService = {
   salvar: async (dto: CategoriaDTO): Promise<Categoria> => {
     const res = await fetch(`${API_BASE}/categorias`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeader(), // <--- CORREÇÃO AQUI
       body: JSON.stringify(dto),
     });
+    if (!res.ok) throw new Error("Erro ao salvar categoria");
     return res.json();
   },
   editar: async (id: number, dto: CategoriaDTO): Promise<Categoria> => {
     const res = await fetch(`${API_BASE}/categorias/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeader(), // <--- CORREÇÃO AQUI
       body: JSON.stringify(dto),
     });
     return res.json();
   },
   deletar: async (id: number): Promise<void> => {
-    await fetch(`${API_BASE}/categorias/${id}`, { method: "DELETE" });
+    await fetch(`${API_BASE}/categorias/${id}`, { 
+        method: "DELETE",
+        headers: getAuthHeader() // <--- CORREÇÃO AQUI
+    });
   },
 };
 
@@ -63,67 +86,99 @@ export const ProdutoService = {
         formData.append("imagem", arquivo);
     }
 
-    const res = await fetch(`${API_BASE}/produtos`, { method: "POST", body: formData });
+    const res = await fetch(`${API_BASE}/produtos`, { 
+        method: "POST", 
+        headers: getUploadHeader(), // <--- CORREÇÃO AQUI (Token no upload)
+        body: formData 
+    });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
   deletar: async (id: number) => {
-      await fetch(`${API_BASE}/produtos/${id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/produtos/${id}`, { 
+          method: 'DELETE',
+          headers: getAuthHeader() // <--- CORREÇÃO AQUI
+      });
   }
 };
 
 export const PedidoService = {
   listarFila: async (): Promise<Pedido[]> => {
-    const res = await fetch(`${API_BASE}/pedidos`);
+    const res = await fetch(`${API_BASE}/pedidos`, {
+        headers: getAuthHeader()
+    });
     if (!res.ok) return [];
     return res.json();
   },
-  listarEncomendas: async (): Promise<Pedido[]> => {
-    const res = await fetch(`${API_BASE}/pedidos`); 
-    if (!res.ok) return [];
-    const todos = await res.json();
-    return todos.filter((p: Pedido) => p.tipo === 'ENCOMENDA'); 
-  },
-  criar: async (pedido: { cliente: string, tipo: string, dataHora?: string, itens: { produtoId?: number, quantidade?: number, descricao?: string }[] }) => {
+  // ... (mantenha os outros métodos, adicionando getAuthHeader onde for POST/PUT/PATCH)
+  criar: async (pedido: any) => {
     const res = await fetch(`${API_BASE}/pedidos`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeader(),
         body: JSON.stringify(pedido)
     });
     if (!res.ok) throw new Error("Erro ao criar pedido");
     return res.json();
   },
   avancarStatus: async (id: number) => {
-    await fetch(`${API_BASE}/pedidos/${id}/avancar`, { method: 'PATCH' });
+    await fetch(`${API_BASE}/pedidos/${id}/avancar`, { 
+        method: 'PATCH',
+        headers: getAuthHeader()
+    });
   }
+};
+
+// ... Mantenha o UsuarioService e AuthService como estavam, eles já pareciam corretos.
+// Adicionando o FeedbackService novo:
+
+export interface FeedbackDTO {
+    cliente: string;
+    mensagem: string;
+    avaliacao: number;
+}
+
+export const FeedbackService = {
+    enviar: async (dto: FeedbackDTO) => {
+        const res = await fetch(`${API_BASE}/feedbacks`, {
+            method: "POST",
+            headers: getAuthHeader(),
+            body: JSON.stringify(dto)
+        });
+        if(!res.ok) throw new Error("Erro ao enviar feedback");
+        return res.json();
+    },
+    listar: async () => {
+        const res = await fetch(`${API_BASE}/feedbacks`, {
+            headers: getAuthHeader()
+        });
+        if(!res.ok) return [];
+        return res.json();
+    }
 };
 
 export const UsuarioService = {
     // --- Métodos Administrativos ---
     listar: async (): Promise<Usuario[]> => {
-        const res = await fetch(`${API_BASE}/usuarios`);
+        const res = await fetch(`${API_BASE}/usuarios`, {
+             headers: getAuthHeader()
+        });
         if (!res.ok) return [];
         return res.json();
     },
     salvar: async (dto: UsuarioDTO): Promise<Usuario> => {
         const res = await fetch(`${API_BASE}/usuarios`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getAuthHeader(),
             body: JSON.stringify(dto),
         });
         if (!res.ok) {
             const errorText = await res.text();
-            try {
-                const errorJson = JSON.parse(errorText);
-                throw new Error(errorJson.message || "Erro ao salvar usuário");
-            } catch { 
-                throw new Error(errorText || "Erro ao salvar usuário");
-            }
+            throw new Error(errorText || "Erro ao salvar usuário");
         }
         return res.json();
     },
     deletar: async (id: number) => {
-        await fetch(`${API_BASE}/usuarios/${id}`, { method: 'DELETE' });
+        await fetch(`${API_BASE}/usuarios/${id}`, { method: 'DELETE', headers: getAuthHeader() });
     },
 
     // --- Métodos do Próprio Usuário (Perfil e Endereços) ---

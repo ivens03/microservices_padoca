@@ -25,7 +25,7 @@ public class TokenService {
                     .withIssuer("padoca-api")
                     .withSubject(usuario.getEmail())
                     .withClaim("id", usuario.getId()) // Guarda o ID no token
-                    .withClaim("role", usuario.getTipo().name()) // Guarda o tipo
+                    .withClaim("role", usuario.getTipo().toString()) // Guarda o tipo
                     .withExpiresAt(genExpirationDate())
                     .sign(algorithm);
         } catch (JWTCreationException exception) {

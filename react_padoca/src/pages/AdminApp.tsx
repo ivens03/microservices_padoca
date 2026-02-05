@@ -11,13 +11,12 @@ import {
     ProdutoService, 
     PedidoService, 
     CategoriaService, 
-    UsuarioService, 
-    DashboardService 
+    DashboardService,
+    FeedbackService 
 } from '../services/api';
-import type { Produto, Categoria, Pedido, Usuario, DashboardStats } from '../types';
+import type { Produto, Categoria, Pedido, DashboardStats } from '../types';
 
 // --- TIPO PERSONALIZADO PARA UI ---
-// Interface para o produto formatado para o layout
 interface ProdutoUI {
     id: number;
     name: string;
@@ -27,6 +26,16 @@ interface ProdutoUI {
     minStock: number;
     image: string;
     type: string;
+}
+
+// Interface para feedback vindo da API
+interface FeedbackItem {
+    id: number;
+    cliente: string;
+    mensagem: string;
+    avaliacao: number;
+    dataHora?: string;
+    data?: string;
 }
 
 const API_URL = 'http://localhost:8080';
@@ -60,8 +69,19 @@ const mapProdutoToLayout = (p: Produto): ProdutoUI => ({
 // --- COMPONENTES ---
 
 const GestaoFeedback = () => {
-  const feedbacks: Array<{id: number, message: string}> = []; // Placeholder tipado
-  const averageRating = '0.0';
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+      FeedbackService.listar()
+        .then((data: any[]) => setFeedbacks(data))
+        .catch(console.error)
+        .finally(() => setLoading(false));
+  }, []);
+
+  const averageRating = feedbacks.length > 0 
+      ? (feedbacks.reduce((acc, curr) => acc + (curr.avaliacao || 0), 0) / feedbacks.length).toFixed(1) 
+      : '0.0';
 
   return (
     <div className="space-y-6 animate-page-transition">
@@ -84,7 +104,26 @@ const GestaoFeedback = () => {
             </div>
          </div>
       </div>
-      {feedbacks.length === 0 && <div className="text-center py-10 text-stone-400">Nenhum feedback registrado.</div>}
+
+      {loading ? (
+          <div className="text-center py-10 text-stone-400">Carregando...</div>
+      ) : feedbacks.length === 0 ? (
+          <div className="text-center py-10 text-stone-400">Nenhum feedback registrado.</div>
+      ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {feedbacks.map((item) => (
+              <div key={item.id} className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
+                  <div className="flex justify-between mb-2">
+                      <h4 className="font-bold text-stone-800 dark:text-stone-100">{item.cliente}</h4>
+                      <div className="flex text-amber-400 font-bold text-sm">
+                          ★ {item.avaliacao}.0
+                      </div>
+                  </div>
+                  <p className="text-sm text-stone-600 dark:text-stone-300">"{item.mensagem}"</p>
+              </div>
+            ))}
+          </div>
+      )}
     </div>
   );
 };
@@ -100,8 +139,7 @@ const GestaoCategorias = ({ categories, onUpdate }: { categories: Categoria[], o
         setInputValue('');
         onUpdate();
         alert('Categoria salva!');
-    } catch (error) {
-        console.error(error);
+    } catch {
         alert('Erro ao salvar categoria.');
     }
   };
@@ -111,7 +149,7 @@ const GestaoCategorias = ({ categories, onUpdate }: { categories: Categoria[], o
     try {
         await CategoriaService.deletar(id);
         onUpdate();
-    } catch (error) {
+    } catch {
         alert('Erro ao deletar. Verifique se há produtos vinculados.');
     }
   };
@@ -204,6 +242,7 @@ const DashboardGestor = ({ products }: { products: ProdutoUI[] }) => {
          </div>
       </div>
       
+      {/* Alertas de Estoque */}
       <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm animate-fade-in">
           <h3 className="font-bold text-stone-800 dark:text-stone-100 mb-6 flex items-center gap-2"><Package size={20} className="text-red-500" /> Alertas de Estoque Baixo</h3>
           <div className="space-y-3">
@@ -223,7 +262,6 @@ const DashboardGestor = ({ products }: { products: ProdutoUI[] }) => {
   );
 };
 
-// Interface para os dados do formulário
 interface ProdutoFormData {
     name: string;
     price: string;
@@ -350,14 +388,14 @@ const GestaoCardapio = ({ products, onUpdate, categories }: { products: ProdutoU
             }, file);
             setIsAdding(false);
             onUpdate();
-        } catch (e) { alert('Erro ao salvar'); }
+        } catch { alert('Erro ao salvar'); }
     };
 
     return (
         <div className="space-y-6 animate-page-transition">
             <div className="flex justify-between items-center bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-md transition-all">
                 <div><h2 className="text-xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-2"><Coffee className="text-amber-500" size={24} /> Itens de Padaria & Vitrine</h2><p className="text-xs text-stone-500">Pão de queijo, cafés e salgados.</p></div>
-                <button onClick={() => setIsAdding(!isAdding)} className="bg-amber-600 text-white px-5 py-2.5 rounded-2xl flex items-center gap-2 font-bold hover:bg-amber-700 transition-all shadow-lg active:scale-95">{isAdding ? <X size={18} /> : <PlusCircle size={18} />} {isAdding ? 'Cancelar' : 'Novo Item'}</button>
+                <button onClick={() => setIsAdding(!isAdding)} className="bg-amber-600 text-white px-5 py-2.5 rounded-2xl flex items-center gap-2 font-bold hover:bg-amber-700 transition-all shadow-lg active:scale-95">{isAdding ? <X size={18} /> : <Plus size={18} />} {isAdding ? 'Cancelar' : 'Novo Item'}</button>
             </div>
             {isAdding && <ProdutoForm categories={categories} onSave={handleSave} onCancel={() => setIsAdding(false)} />}
             
@@ -377,7 +415,6 @@ const OrderBoard = ({ orders, onUpdateStatus }: { orders: Pedido[], onUpdateStat
 const RegistrarEncomenda = ({ onAdd }: { onAdd: () => void }) => {
   const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      // Lógica de encomenda
       alert("Encomendas em breve");
       onAdd();
   };
@@ -414,30 +451,21 @@ export default function AdminApp() {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('equipe'); 
   const [activeTab, setActiveTab] = useState('orders');
-  const [isDarkMode, setIsDarkMode] = useState(false);
   
-  // Estados de Dados Reais
   const [products, setProducts] = useState<ProdutoUI[]>([]);
   const [orders, setOrders] = useState<Pedido[]>([]);
   const [categories, setCategories] = useState<Categoria[]>([]);
   
-  // CORREÇÃO: User estava sendo lido mas não usado, removido para limpar erro
-  // const [user, setUser] = useState<Usuario | null>(null);
-
-  // Carregamento de Dados
-  // CORREÇÃO: useCallbak para evitar o erro 'react-hooks/set-state-in-effect'
   const refreshData = useCallback(async () => {
       try {
           const [p, o, c] = await Promise.all([
               ProdutoService.listarTodos(),
               PedidoService.listarFila(),
               CategoriaService.listar(),
-              // UsuarioService.getMe().catch(() => null)
           ]);
           setProducts(p.map(mapProdutoToLayout));
           setOrders(o);
           setCategories(c);
-          // if(u) setUser(u);
       } catch (error) {
           console.error("Erro ao carregar dados:", error);
       }
@@ -471,7 +499,7 @@ export default function AdminApp() {
   }, [viewMode]);
 
   return (
-    <div className={isDarkMode ? 'dark' : ''}>
+    <div>
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950 font-sans text-stone-900 dark:text-stone-100 transition-colors duration-500">
         <style>{`
           @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -520,7 +548,7 @@ export default function AdminApp() {
               <>
                 {activeTab === 'orders' && <OrderBoard orders={orders} onUpdateStatus={handleUpdateOrderStatus} />}
                 {activeTab === 'bakery-menu' && <GestaoCardapio products={products} onUpdate={refreshData} categories={categories} />}
-                {activeTab === 'market-menu' && <GestaoCardapio products={products.filter(p => p.type === 'Mercado')} onUpdate={refreshData} categories={categories} />} {/* Reutilizando Cardapio mas filtrado */}
+                {activeTab === 'market-menu' && <GestaoCardapio products={products.filter(p => p.type === 'Mercado')} onUpdate={refreshData} categories={categories} />}
                 {activeTab === 'new-commission' && <RegistrarEncomenda onAdd={() => setActiveTab('agenda-commissions')} />}
                 {activeTab === 'agenda-commissions' && <AgendaEncomendas commissions={orders.filter(o => o.tipo === 'ENCOMENDA')} />}
               </>

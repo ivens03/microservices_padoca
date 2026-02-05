@@ -5,7 +5,7 @@ import {
   Gift, Star, Info, MessageCircle, Phone, Mail, Send, UtensilsCrossed, Search,
   Package, PenTool, X, AlignJustify, ChefHat, MapPin, Home, LogOut, Bell, Pencil, Settings
 } from 'lucide-react';
-import { ProdutoService, PedidoService, CategoriaService, UsuarioService } from '../services/api';
+import { ProdutoService, PedidoService, CategoriaService, UsuarioService, FeedbackService } from '../services/api';
 import type { Produto, Categoria } from '../types';
 
 interface CartItem extends Produto {
@@ -156,12 +156,33 @@ export default function ClientApp() {
       }
   };
 
-  const handleFeedbackSubmit = (e: React.FormEvent) => {
+const handleFeedbackSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      alert(`Obrigado pelo feedback de ${rating} estrelas!`);
-      setRating(0);
-      setHoverRating(0);
-      setFeedbackMsg('');
+      
+      if (rating === 0) {
+          alert("Por favor, selecione uma nota de 1 a 5 estrelas.");
+          return;
+      }
+
+      try {
+          // Chama o Back-end
+          await FeedbackService.enviar({
+              cliente: user.nome || "Cliente Anônimo",
+              mensagem: feedbackMsg || "Sem mensagem",
+              avaliacao: rating
+          });
+
+          alert(`Obrigado! Seu feedback de ${rating} estrelas foi enviado.`);
+          
+          // Limpa o formulário
+          setRating(0);
+          setHoverRating(0);
+          setFeedbackMsg('');
+
+      } catch (error) {
+          console.error("Erro ao enviar feedback:", error);
+          alert("Não foi possível enviar seu feedback. Tente novamente.");
+      }
   }
 
   const cartTotal = cart.reduce((acc, item) => acc + (item.preco * item.qty), 0);

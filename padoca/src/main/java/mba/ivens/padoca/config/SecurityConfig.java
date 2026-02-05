@@ -28,8 +28,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .cors(Customizer.withDefaults()) // Habilita o CORS configurado abaixo
-                .csrf(csrf -> csrf.disable())    // Desabilita CSRF para API Stateless
+                .cors(Customizer.withDefaults())
+                .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         // --- ROTAS PÚBLICAS ---
@@ -39,11 +39,23 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/produtos").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categorias").permitAll()
 
-                        // --- ROTAS RESTRITAS ---
-                        .requestMatchers("/api/usuarios/admin/**").hasRole("GESTOR")
-                        .requestMatchers(HttpMethod.POST, "/api/produtos").hasAnyRole("GESTOR", "FUNCIONARIO")
-                        .requestMatchers(HttpMethod.PUT, "/api/produtos/**").hasAnyRole("GESTOR", "FUNCIONARIO")
+                        // Permitir envio de feedback por qualquer um (ou apenas autenticados, se preferir)
+                        .requestMatchers(HttpMethod.POST, "/api/feedbacks").authenticated()
 
+                        // --- ROTAS RESTRITAS ---
+                        // Categorias e Produtos (Escrita)
+                        .requestMatchers(HttpMethod.POST, "/api/categorias").hasAnyRole("GESTOR", "FUNCIONARIO", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/categorias/**").hasAnyRole("GESTOR", "FUNCIONARIO", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/categorias/**").hasAnyRole("GESTOR", "ADMIN")
+
+                        .requestMatchers(HttpMethod.POST, "/api/produtos").hasAnyRole("GESTOR", "FUNCIONARIO", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/produtos/**").hasAnyRole("GESTOR", "FUNCIONARIO", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/produtos/**").hasAnyRole("GESTOR", "ADMIN")
+
+                        .requestMatchers("/api/usuarios/admin/**").hasRole("GESTOR")
+
+                        // Apenas gestores podem VER todos os feedbacks
+                        .requestMatchers(HttpMethod.GET, "/api/feedbacks").hasAnyAuthority("GESTOR", "ADMIN", "ROLE_GESTOR", "ROLE_ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
