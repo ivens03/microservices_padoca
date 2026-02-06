@@ -10,5 +10,8 @@ public record CategoriaRequestDTO(
         String nome,
 
         @Size(max = 255, message = "A descrição pode ter no máximo 255 caracteres")
-        String descricao
+        String descricao,
+
+        @Size(max = 50, message = "O tipo de exibição pode ter no máximo 50 caracteres") // Validação de tamanho
+        String tipoExibicao // Novo campo tipoExibicao
 ) {}

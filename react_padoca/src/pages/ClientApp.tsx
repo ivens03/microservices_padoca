@@ -73,6 +73,8 @@ export default function ClientApp() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const normalizeCategoryName = (name?: string) => name?.toLowerCase() || '';
+
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [feedbackMsg, setFeedbackMsg] = useState('');
@@ -97,6 +99,8 @@ export default function ClientApp() {
             ]);
             setProducts(p);
             setCategories(c);
+            console.log("Produtos carregados da API (ClientApp - useEffect):", p); // NOVO LOG
+            console.log("Categorias carregadas da API (ClientApp - useEffect):", c); // NOVO LOG
 
             try {
                 const usuarioReal = await UsuarioService.getMe();
@@ -190,29 +194,35 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
   const getFilteredProducts = () => {
       let filtered = products;
 
-      // BLINDAGEM CONTRA NULOS AQUI
+      // Define categories that belong to 'Mercado' based on the current logic
+      const marketCategoryNames = [
+          'mercado', 'mercearia', 'adega', 'laticínos', // Original market terms
+          'pao', 'carnes', 'doce', 'confeitaria', 'bebidas', 'lanches', 'salgados', // Common categories
+          'item de padaria', 'item de estoque', // Categories from DB product names
+          'aaa', 'um otimo doce' // Specific categories found in your DB data
+      ];
+      // Get the IDs of these market categories
+      const marketCategoryIds = categories
+          .filter(cat => marketCategoryNames.some(name => normalizeCategoryName(cat.nome).includes(name)))
+          .map(cat => cat.id);
+
+      // Define categories that belong to 'Almoço'
+      const lunchCategoryNames = ['almoço', 'prato'];
+      const lunchCategoryIds = categories
+          .filter(cat => lunchCategoryNames.some(name => normalizeCategoryName(cat.nome).includes(name)))
+          .map(cat => cat.id);
+
+
       if (activeTab === 'almoco') {
-          filtered = products.filter(p => 
-              p.categoria?.nome?.toLowerCase()?.includes('almoço') || 
-              p.categoria?.nome?.toLowerCase()?.includes('prato')
-          );
+          filtered = products.filter(p => lunchCategoryIds.includes(p.categoriaId));
       } else if (activeTab === 'mercado') {
-          filtered = products.filter(p => 
-              p.categoria?.nome?.toLowerCase()?.includes('mercado') || 
-              p.categoria?.nome?.toLowerCase()?.includes('mercearia') || 
-              p.categoria?.nome?.toLowerCase()?.includes('adega') || 
-              p.categoria?.nome?.toLowerCase()?.includes('laticínios')
-          );
+          filtered = products.filter(p => marketCategoryIds.includes(p.categoriaId));
       } else if (activeTab === 'menu') {
-          filtered = products.filter(p => 
-              !p.categoria?.nome?.toLowerCase()?.includes('mercado') && 
-              !p.categoria?.nome?.toLowerCase()?.includes('encomenda') &&
-              !p.categoria?.nome?.toLowerCase()?.includes('kit')
-          );
+          filtered = []; // Cardápio agora está vazio, produtos foram movidos para Mercado
       }
 
       if (activeCategory !== 'todos') {
-          filtered = filtered.filter(p => p.categoria?.id === activeCategory);
+          filtered = filtered.filter(p => p.categoriaId === activeCategory);
       }
 
       if (searchTerm) {
@@ -222,12 +232,12 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
       return filtered;
   };
 
-  // BLINDAGEM E REMOÇÃO DE DUPLICATAS
-  const encomendaProducts = products.filter(p => 
-      p.categoria?.nome?.toLowerCase()?.includes('encomenda') || 
-      p.categoria?.nome?.toLowerCase()?.includes('kit') || 
-      p.categoria?.nome?.toLowerCase()?.includes('festa')
-  );
+  const encomendaCategoryNames = ['encomenda', 'kit', 'festa'];
+  const encomendaCategoryIds = categories
+      .filter(cat => encomendaCategoryNames.some(name => normalizeCategoryName(cat.nome).includes(name)))
+      .map(cat => cat.id);
+
+  const encomendaProducts = products.filter(p => encomendaCategoryIds.includes(p.categoriaId));
 
   const displayProducts = getFilteredProducts();
 
@@ -322,7 +332,13 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
                                             />
                                             {prod.quantidadeEstoque <= 0 && <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-[2px] flex items-center justify-center text-white font-bold uppercase tracking-widest border-2 border-white/20 m-2 rounded-xl">Esgotado</div>}
                                         </div>
-                                        <div className="flex justify-between items-start mb-2"><h3 className="font-bold text-lg leading-tight text-stone-800 dark:text-stone-100">{prod.nome}</h3><span className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap">R$ {prod.preco.toFixed(2)}</span></div>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <h3 className="font-bold text-lg leading-tight text-stone-800 dark:text-stone-100">{prod.nome}</h3>
+                                                <p className="text-xs text-stone-400">{prod.categoriaNome}</p> 
+                                            </div>
+                                            <span className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap">R$ {prod.preco.toFixed(2)}</span>
+                                        </div>
                                         <p className="text-sm text-stone-500 line-clamp-2 mb-4 flex-grow">{prod.descricao}</p>
                                         <button onClick={() => addToCart(prod)} disabled={prod.quantidadeEstoque <= 0} className="w-full bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 py-3.5 rounded-2xl font-bold hover:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-lg shadow-stone-200 dark:shadow-none">{prod.quantidadeEstoque > 0 ? 'Adicionar ao Pedido' : 'Indisponível'}</button>
                                     </div>

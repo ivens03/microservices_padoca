@@ -12,6 +12,7 @@ public class CategoriaMapper {
         Categoria entity = new Categoria();
         entity.setNome(dto.nome().toUpperCase());
         entity.setDescricao(dto.descricao());
+        entity.setTipoExibicao(dto.tipoExibicao()); // Mapeamento adicionado
         entity.setAtivo(true);
         return entity;
     }
@@ -21,6 +22,7 @@ public class CategoriaMapper {
                 entity.getId(),
                 entity.getNome(),
                 entity.getDescricao(),
+                entity.getTipoExibicao(), // Mapeamento adicionado
                 entity.getAtivo()
         );
     }
