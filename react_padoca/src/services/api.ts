@@ -77,7 +77,15 @@ export const ProdutoService = {
      if (!res.ok) return [];
      return res.json();
   },
+  buscarPorId: async (id: number): Promise<Produto> => {
+    const res = await fetch(`${API_BASE}/produtos/${id}`, {
+      headers: getAuthHeader()
+    });
+    if (!res.ok) throw new Error("Erro ao buscar produto por ID");
+    return res.json();
+  },
   criar: async (produtoJSON: Record<string, unknown>, arquivo: File | null) => {
+    console.log("Frontend sending produtoJSON (create):", produtoJSON);
     const formData = new FormData();
     const jsonBlob = new Blob([JSON.stringify(produtoJSON)], { type: "application/json" });
     formData.append("produto", jsonBlob);
@@ -88,8 +96,26 @@ export const ProdutoService = {
 
     const res = await fetch(`${API_BASE}/produtos`, { 
         method: "POST", 
-        headers: getUploadHeader(), // <--- CORREÇÃO AQUI (Token no upload)
+        headers: getUploadHeader(),
         body: formData 
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+  atualizar: async (id: number, produtoJSON: Record<string, unknown>, arquivo: File | null) => {
+    console.log("Frontend sending produtoJSON (update):", produtoJSON);
+    const formData = new FormData();
+    const jsonBlob = new Blob([JSON.stringify(produtoJSON)], { type: "application/json" });
+    formData.append("produto", jsonBlob);
+
+    if (arquivo) {
+        formData.append("imagem", arquivo);
+    }
+
+    const res = await fetch(`${API_BASE}/produtos/${id}`, {
+        method: "PUT",
+        headers: getUploadHeader(),
+        body: formData
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -97,7 +123,7 @@ export const ProdutoService = {
   deletar: async (id: number) => {
       await fetch(`${API_BASE}/produtos/${id}`, { 
           method: 'DELETE',
-          headers: getAuthHeader() // <--- CORREÇÃO AQUI
+          headers: getAuthHeader()
       });
   }
 };

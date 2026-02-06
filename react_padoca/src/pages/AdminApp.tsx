@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { 
   BarChart3, DollarSign, ClipboardList, PlusCircle, 
   Package, Trash2, ChefHat, 
-  AlertTriangle, X, Upload, 
+  AlertTriangle, X, Upload, Pencil, 
   BookOpen, Gift, Coffee, ShoppingBasket,
-  Tags, Layers, MessageSquare, LogOut
+  Tags, Layers, MessageSquare, LogOut,
+  Plus
 } from 'lucide-react';
 import { 
     ProdutoService, 
@@ -20,12 +21,13 @@ import type { Produto, Categoria, Pedido, DashboardStats } from '../types';
 interface ProdutoUI {
     id: number;
     name: string;
+    description: string;
     price: number;
+    categoryId: number; // ADDED
     category: string;
     stock: number;
     minStock: number;
-    image: string;
-    type: string;
+    image: string | null;
 }
 
 // Interface para feedback vindo da API
@@ -57,13 +59,13 @@ const getCurrentFullDate = () => {
 const mapProdutoToLayout = (p: Produto): ProdutoUI => ({
     id: p.id,
     name: p.nome,
+    description: p.descricao,
     price: p.preco,
-    type: p.categoria?.nome?.includes('Almoço') ? 'Almoço' : 
-          p.categoria?.nome?.includes('Mercado') ? 'Mercado' : 'Padaria',
-    category: p.categoria?.nome || 'Geral',
-    stock: p.quantidadeEstoque,
-    minStock: p.estoqueMinimo,
-    image: p.imagemUrl ? `${API_URL}${p.imagemUrl}` : ''
+    categoryId: p.categoriaId, // NEW: Use categoriaId directly
+    category: p.categoriaNome || 'Geral', // Use categoriaNome directly
+    stock: p.quantidadeEstoque,  // Use quantidadeEstoque directly
+    minStock: p.estoqueMinimo,    // Use estoqueMinimo directly
+    image: p.imagemUrl ? `${API_URL}${p.imagemUrl}` : null // Set to null if no image URL
 });
 
 // --- COMPONENTES ---
@@ -263,7 +265,9 @@ const DashboardGestor = ({ products }: { products: ProdutoUI[] }) => {
 };
 
 interface ProdutoFormData {
+    id: number | undefined;
     name: string;
+    description: string;
     price: string;
     stock: string;
     minStock: string;
@@ -292,6 +296,7 @@ const ProdutoForm = ({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        console.log("ProdutoForm formData before onSave:", formData); // Add this line
         onSave(formData, imageFile);
     };
 
@@ -331,42 +336,245 @@ const ProdutoForm = ({
 };
 
 const EstoqueGeral = ({ products, onUpdate, categories }: { products: ProdutoUI[], onUpdate: () => void, categories: Categoria[] }) => {
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isAdding, setIsAdding] = useState(false); // From GestaoMercado
+  const [loading, setLoading] = useState(false); // From GestaoMercado
+  const [editingProductId, setEditingProductId] = useState<number | undefined>(undefined); // From GestaoMercado
+  const [searchTerm, setSearchTerm] = useState(""); // From GestaoMercado
+  const [currentPage, setCurrentPage] = useState(1); // From GestaoMercado
+  const [itemsPerPage] = useState(10); // From GestaoMercado
+  
+  const [form, setForm] = useState({
+    id: undefined as number | undefined,
+    nome: "",
+    descricao: "",
+    preco: "",
+    quantidadeEstoque: "0",
+    estoqueMinimo: "5",
+    categoriaId: "" as string
+  });
+  
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState("");
 
-  const handleSave = async (data: ProdutoFormData, file: File | null) => {
-      try {
-          await ProdutoService.criar({
-              nome: data.name,
-              descricao: 'Item de estoque',
-              preco: parseFloat(data.price),
-              quantidadeEstoque: parseInt(data.stock),
-              estoqueMinimo: parseInt(data.minStock),
-              categoria: { id: parseInt(data.categoryId) },
-              ativo: true
-          }, file);
-          setIsFormOpen(false);
-          onUpdate();
-      } catch (error) {
-          console.error(error);
-          alert('Erro ao salvar produto');
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.categoriaId) return alert("Selecione uma categoria!");
+    setLoading(true);
+
+    try {
+      const productData = {
+        nome: form.nome,
+        descricao: form.descricao,
+        preco: Number(form.preco),
+        quantidadeEstoque: Number(form.quantidadeEstoque),
+        estoqueMinimo: Number(form.estoqueMinimo),
+        categoriaId: Number(form.categoriaId), // Changed from nested 'categoria' object
+        ativo: true 
+      };
+
+      if (form.id) {
+        // Update existing product
+        await ProdutoService.atualizar(form.id, productData, selectedFile);
+        alert("Produto atualizado!");
+      } else {
+        // Create new product
+        await ProdutoService.criar(productData, selectedFile);
+        alert("Produto salvo!");
       }
+
+      setIsAdding(false);
+      setEditingProductId(undefined);
+      setForm({ id: undefined, nome: "", descricao: "", preco: "", quantidadeEstoque: "0", estoqueMinimo: "5", categoriaId: "" });
+      setSelectedFile(null);
+      setPreview("");
+      onUpdate(); // Refresh data in parent
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao salvar produto");
+    } finally {
+        setLoading(false);
+    }
   };
 
   const handleDelete = async (id: number) => {
-      if(!confirm("Excluir este item?")) return;
-      await ProdutoService.deletar(id);
-      onUpdate();
+      if(confirm("Remover item do estoque?")) {
+          await ProdutoService.deletar(id);
+          onUpdate();
+      }
   };
+
+  const startEdit = (p: ProdutoUI) => {
+      console.log("startEdit called with product:", p);
+      setEditingProductId(p.id);
+
+      const foundCategory = categories.find(cat => cat.nome === p.category);
+      const categoryIdToSet = foundCategory?.id?.toString() || "";
+
+      console.log("Product category (p.category):", p.category);
+      console.log("Found category object:", foundCategory);
+      console.log("Calculated categoryIdToSet:", categoryIdToSet);
+      console.log("Product stock (p.stock):", p.stock);
+      console.log("Product minStock (p.minStock):", p.minStock);
+
+      setForm(prevForm => { // Use functional update to ensure we log the *next* state
+          const newForm = {
+              ...prevForm, // Keep existing form values, for fields not explicitly updated here
+              id: p.id,
+              nome: p.name,
+              descricao: p.description,
+              preco: String(p.price),
+              quantidadeEstoque: String(p.stock ?? 0), // Default to "0" if null/undefined
+              estoqueMinimo: String(p.minStock ?? 0),   // Default to "0" if null/undefined
+              categoriaId: String(p.categoryId) // Use the direct categoryId from ProdutoUI
+          };
+          console.log("NEW form state being set by startEdit:", newForm);
+          return newForm;
+      });
+      setPreview(p.image || "");
+      setSelectedFile(null); // Clear selected file for edit, user has to re-upload if they want to change
+      setIsAdding(true);
+  };
+
+  const handleToggleAddEdit = () => {
+    console.log("handleToggleAddEdit called. isAdding before toggle:", isAdding); // ADDED
+    setIsAdding(!isAdding);
+    if (isAdding) { // If was adding/editing, clear form and editing state
+      console.log("Resetting form due to toggle."); // ADDED
+      setForm({ id: undefined, nome: "", descricao: "", preco: "", quantidadeEstoque: "0", estoqueMinimo: "5", categoriaId: "" });
+      setSelectedFile(null);
+      setPreview("");
+      setEditingProductId(undefined);
+    }
+  };
+
+  // Filter products based on search term
+  const filteredProdutos = products.filter(p =>
+    (p.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Pagination calculations
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredProdutos.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredProdutos.length / itemsPerPage);
 
   return (
     <div className="space-y-6 animate-page-transition">
       <div className="flex justify-between items-center bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm transition-all hover:shadow-md">
         <div><h2 className="text-xl font-bold">Gestão de Itens</h2><p className="text-xs text-stone-500">Alimente o estoque geral do sistema.</p></div>
-        <button onClick={() => setIsFormOpen(!isFormOpen)} className="bg-stone-800 dark:bg-amber-600 text-white px-5 py-2.5 rounded-2xl flex items-center gap-2 font-bold shadow-md hover:opacity-90 active:scale-95 transition-all">{isFormOpen ? <X size={18}/> : <PlusCircle size={18} />} {isFormOpen ? 'Fechar' : 'Novo Item'}</button>
-      </div>
-      {isFormOpen && <ProdutoForm categories={categories} onSave={handleSave} onCancel={() => setIsFormOpen(false)} />}
+        <button onClick={handleToggleAddEdit} className="bg-stone-800 dark:bg-amber-600 text-white px-5 py-2.5 rounded-2xl flex items-center gap-2 font-bold shadow-md hover:opacity-90 active:scale-95">{isAdding ? <X size={18}/> : <PlusCircle size={18} />} {isAdding ? 'Fechar' : 'Novo Item'}</button>
+            </div>
       
-      <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-100 dark:border-stone-800 overflow-hidden shadow-sm animate-fade-in"><table className="w-full text-left"><thead className="bg-stone-50 dark:bg-stone-800 text-stone-400 text-[10px] font-bold uppercase tracking-widest"><tr><th className="px-6 py-4">Produto</th><th className="px-6 py-4 text-center">Estoque</th><th className="px-6 py-4 text-right">Ações</th></tr></thead><tbody className="divide-y divide-stone-50 dark:divide-stone-800">{products.map(p => (<tr key={p.id} className="hover:bg-stone-50/50 dark:hover:bg-stone-800/50 transition-colors duration-200"><td className="px-6 py-4 flex items-center gap-3"><img src={p.image} className="w-10 h-10 rounded-xl object-cover transition-transform duration-300 hover:scale-125" onError={(e) => e.currentTarget.src = 'https://via.placeholder.com/50'} alt="" /><span className="font-bold text-sm text-stone-700 dark:text-stone-200">{p.name}</span></td><td className="px-6 py-4 text-center font-bold">{p.stock} un</td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><button onClick={() => handleDelete(p.id)} className="p-2 text-stone-300 hover:text-red-500 transition-all"><Trash2 size={16}/></button></div></td></tr>))}</tbody></table></div>
+            {isAdding && (
+              <form onSubmit={handleSave} className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-emerald-100 dark:border-stone-800 shadow-xl animate-fade-in-up space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="flex flex-col space-y-5">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Nome</label>
+                        <input required value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none" placeholder="Ex: Vinho Tinto" />
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Descrição</label>
+                        <input required value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none" placeholder="Detalhes..." />
+                    </div>
+      
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Preço (R$)</label>
+                          <input required type="number" step="0.01" value={form.preco} onChange={e => setForm({...form, preco: e.target.value})} className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none" />
+                      </div>
+                      <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Categoria</label>
+                          <select className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none"
+                              value={form.categoriaId}
+                              onChange={e => setForm({...form, categoriaId: e.target.value})}
+                          >
+                              <option value="">Selecione...</option>
+                              {categories.map(cat => (<option key={cat.id} value={cat.id}>{cat.nome}</option>))}
+                          </select>
+                      </div>
+                    </div>
+      
+                    <div className="grid grid-cols-2 gap-4 bg-stone-50 dark:bg-stone-800 p-4 rounded-2xl border border-stone-100 dark:border-stone-700">
+                       <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Estoque Atual</label>
+                          <input type="number" required value={form.quantidadeEstoque} onChange={e => setForm({...form, quantidadeEstoque: e.target.value})} className="w-full p-2 bg-white dark:bg-stone-700 rounded-xl outline-none" />
+                       </div>
+                       <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Mínimo</label>
+                          <input type="number" required value={form.estoqueMinimo} onChange={e => setForm({...form, estoqueMinimo: e.target.value})} className="w-full p-2 bg-white dark:bg-stone-700 rounded-xl outline-none" />
+                       </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-1">Foto</label>
+                    <div onClick={() => document.getElementById('market-upload')?.click()} className="relative flex-grow min-h-[160px] border-2 border-dashed border-stone-200 dark:border-stone-700 rounded-3xl flex flex-col items-center justify-center cursor-pointer bg-stone-50 dark:bg-stone-800 hover:border-emerald-300">
+                      {preview ? <img src={preview} className="w-full h-full object-cover rounded-3xl" /> : <div className="text-center"><Upload className="mx-auto mb-2 text-stone-400"/> <span className="text-xs font-bold text-stone-500">Enviar Foto</span></div>}
+                      <input id="market-upload" type="file" hidden onChange={(e) => e.target.files && (setSelectedFile(e.target.files[0]), setPreview(URL.createObjectURL(e.target.files[0])))} />
+                    </div>
+                  </div>
+                </div>
+                <button disabled={loading} className="w-full bg-emerald-600 text-white font-bold py-4 rounded-2xl mt-4 hover:bg-emerald-700 transition-all">
+                    {loading ? (form.id ? 'Atualizando...' : 'Salvando...') : (form.id ? 'Atualizar Produto' : 'Salvar Produto')}
+                </button>
+                      </form>
+                    )}
+              
+                    {/* Search Input */}
+                    <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
+                      <input
+                        type="text"
+                        placeholder="Buscar produto por nome..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value);
+                          setCurrentPage(1); // Reset to first page on search
+                        }}
+                        className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none"
+                      />
+                    </div>
+              
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">        {currentItems.map(p => (
+           <div key={p.id} className="bg-white dark:bg-stone-900 rounded-3xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden group">
+               <div className="h-40 relative">
+                   <img src={p.image || 'https://via.placeholder.com/300?text=Sem+Foto'} className="w-full h-full object-cover" onError={(e) => e.currentTarget.src = 'https://via.placeholder.com/300?text=Sem+Foto'} alt={p.name} />
+                   <div className="absolute top-3 right-3 bg-white/90 px-3 py-1 rounded-xl font-bold text-emerald-700 text-xs">
+                       Est: {p.stock}
+                   </div>
+               </div>
+               <div className="p-4">
+                   <h3 className="font-bold text-stone-800 dark:text-stone-100">{p.name}</h3>
+                   <div className="flex justify-between items-center mt-2">
+                       <span className="text-xs font-bold text-stone-400 uppercase">{p.category || 'Sem Categoria'}</span>
+                       <span className="text-emerald-600 font-bold">R$ {p.price.toFixed(2)}</span>
+                   </div>
+                   <div className="mt-4 flex gap-2 justify-end">
+                       <button onClick={() => startEdit(p)} className="p-2 text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg"><Pencil size={16}/></button>
+                       <button onClick={() => handleDelete(p.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 size={16}/></button>
+                   </div>
+               </div>
+           </div>
+        ))}
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex justify-center items-center space-x-2 mt-6">
+        {Array.from({ length: totalPages }, (_, i) => (
+          <button
+            key={i + 1}
+            onClick={() => setCurrentPage(i + 1)}
+            className={`px-4 py-2 rounded-lg font-bold ${
+              currentPage === i + 1
+                ? 'bg-emerald-600 text-white'
+                : 'bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-300 dark:hover:bg-stone-600'
+            }`}
+          >
+            {i + 1}
+          </button>
+        ))}
+      </div>
     </div>
   );
 };
@@ -383,7 +591,7 @@ const GestaoCardapio = ({ products, onUpdate, categories }: { products: ProdutoU
                 preco: parseFloat(data.price),
                 quantidadeEstoque: parseInt(data.stock),
                 estoqueMinimo: parseInt(data.minStock),
-                categoria: { id: parseInt(data.categoryId) },
+                categoriaId: parseInt(data.categoryId), // Use the category name string directly
                 ativo: true
             }, file);
             setIsAdding(false);
@@ -492,7 +700,7 @@ export default function AdminApp() {
     return [
       { id: 'orders', label: 'Pedidos de Balcão', icon: ClipboardList }, 
       { id: 'bakery-menu', label: 'Itens Padaria', icon: Coffee }, 
-      { id: 'market-menu', label: 'Mercado', icon: ShoppingBasket }, 
+      { id: 'market-menu', label: 'Itens de Mercado', icon: ShoppingBasket }, 
       { id: 'new-commission', label: 'Nova Encomenda', icon: PlusCircle }, 
       { id: 'agenda-commissions', label: 'Agenda Encomendas', icon: BookOpen }
     ];
@@ -547,8 +755,8 @@ export default function AdminApp() {
             ) : (
               <>
                 {activeTab === 'orders' && <OrderBoard orders={orders} onUpdateStatus={handleUpdateOrderStatus} />}
-                {activeTab === 'bakery-menu' && <GestaoCardapio products={products} onUpdate={refreshData} categories={categories} />}
-                {activeTab === 'market-menu' && <GestaoCardapio products={products.filter(p => p.type === 'Mercado')} onUpdate={refreshData} categories={categories} />}
+                {activeTab === 'bakery-menu' && <GestaoCardapio products={products.filter(p => ['PAO', 'CONFEITARIA', 'LANCHES', 'BEBIDAS'].includes(p.category))} onUpdate={refreshData} categories={categories} />}
+                {activeTab === 'market-menu' && <EstoqueGeral products={products} onUpdate={refreshData} categories={categories} />}
                 {activeTab === 'new-commission' && <RegistrarEncomenda onAdd={() => setActiveTab('agenda-commissions')} />}
                 {activeTab === 'agenda-commissions' && <AgendaEncomendas commissions={orders.filter(o => o.tipo === 'ENCOMENDA')} />}
               </>

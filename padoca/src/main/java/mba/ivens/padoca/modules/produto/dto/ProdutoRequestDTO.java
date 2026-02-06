@@ -18,11 +18,18 @@ public record ProdutoRequestDTO(
         BigDecimal preco,
 
         @NotNull(message = "A categoria é obrigatória")
-        CategoriaProduto categoria,
+        Long categoriaId,
 
         String imagemUrl,
 
+        @NotNull(message = "A quantidade em estoque é obrigatória")
         Integer quantidadeEstoque,
+        
+        @NotNull(message = "O estoque mínimo é obrigatório")
+        Integer estoqueMinimo,
 
-        String diaDaSemanaDisponivel
+        String diaDaSemanaDisponivel,
+
+        @NotNull(message = "O status ativo é obrigatório")
+        boolean ativo
 ) {}

@@ -2,7 +2,8 @@ package mba.ivens.padoca.modules.produto.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import mba.ivens.padoca.modules.produto.model.enums.CategoriaProduto;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -29,9 +30,11 @@ public class Produto {
 
     private String imagemUrl;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private CategoriaProduto categoria;
+    @ManyToOne
+    @JoinColumn(name = "categoria_id", nullable = false)
+    @EqualsAndHashCode.Exclude // Exclui de equals e hashCode gerados pelo Lombok
+    @ToString.Exclude     // Exclui de toString gerado pelo Lombok
+    private Categoria categoria;
 
     @Column(nullable = false)
     private Boolean ativo = true;

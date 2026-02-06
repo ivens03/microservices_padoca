@@ -8,17 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ProdutoMapper {
 
-    public Produto toEntity(ProdutoRequestDTO dto) {
-        Produto p = new Produto();
-        p.setNome(dto.nome());
-        p.setDescricao(dto.descricao());
-        p.setPreco(dto.preco());
-        p.setImagemUrl(dto.imagemUrl());
-        p.setCategoria(dto.categoria());
-        p.setDiaDaSemanaDisponivel(dto.diaDaSemanaDisponivel());
-        // Ativo já é true por padrão
-        return p;
-    }
+
 
     public ProdutoResponseDTO toResponse(Produto entity) {
         return new ProdutoResponseDTO(
@@ -27,7 +17,10 @@ public class ProdutoMapper {
                 entity.getDescricao(),
                 entity.getPreco(),
                 entity.getImagemUrl(),
-                entity.getCategoria(),
+                entity.getCategoria() != null ? entity.getCategoria().getNome() : null, // Handle null category
+                entity.getCategoria() != null ? entity.getCategoria().getId() : null,   // Add categoriaId
+                entity.getQuantidadeEstoque(),  // Add quantidadeEstoque
+                entity.getEstoqueMinimo(),      // Add estoqueMinimo
                 entity.getDiaDaSemanaDisponivel()
         );
     }

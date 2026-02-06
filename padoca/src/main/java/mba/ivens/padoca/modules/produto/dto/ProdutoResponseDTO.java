@@ -9,6 +9,9 @@ public record ProdutoResponseDTO(
         String descricao,
         BigDecimal preco,
         String imagemUrl,
-        CategoriaProduto categoria,
+        String categoriaNome,
+        Long categoriaId,
+        Integer quantidadeEstoque,
+        Integer estoqueMinimo,
         String diaDaSemanaDisponivel
 ) {}

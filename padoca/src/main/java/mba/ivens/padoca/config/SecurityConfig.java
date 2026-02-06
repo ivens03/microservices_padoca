@@ -38,6 +38,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/produtos").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categorias").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll() // Permitir acesso às imagens carregadas
 
                         // Permitir envio de feedback por qualquer um (ou apenas autenticados, se preferir)
                         .requestMatchers(HttpMethod.POST, "/api/feedbacks").authenticated()

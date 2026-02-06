@@ -9,7 +9,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import mba.ivens.padoca.modules.produto.dto.ProdutoRequestDTO;
 import mba.ivens.padoca.modules.produto.dto.ProdutoResponseDTO;
-import mba.ivens.padoca.modules.produto.model.enums.CategoriaProduto;
 import mba.ivens.padoca.modules.produto.services.FileStorageService;
 import mba.ivens.padoca.modules.produto.services.ProdutoService;
 import org.springframework.http.HttpStatus;
@@ -37,36 +36,64 @@ public class ProdutoController {
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<ProdutoResponseDTO> criar(
             @RequestPart("produto") @Valid ProdutoRequestDTO dto,
-            @RequestPart("imagem") MultipartFile imagem) {
+            @RequestPart(value = "imagem", required = false) MultipartFile imagem) {
 
-        String caminhoImagem = fileService.salvarArquivo(imagem);
+        String caminhoImagem = null;
+        if (imagem != null && !imagem.isEmpty()) {
+            caminhoImagem = fileService.salvarArquivo(imagem);
+        }
         var response = service.criarProduto(dto, caminhoImagem);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     // --- 2. LISTAR (GERAL OU POR CATEGORIA) ---
-    @Operation(summary = "Listar Produtos", description = "Lista todos os produtos ativos. Use o parâmetro opcional 'categoria' para filtrar.")
+    @Operation(summary = "Listar Produtos", description = "Lista todos os produtos ativos. Use o parâmetro opcional 'categoriaNome' para filtrar.")
     @GetMapping
     public ResponseEntity<List<ProdutoResponseDTO>> listar(
-            @Parameter(description = "Ex: CONFEITARIA, BEBIDAS, MERCEARIA")
-            @RequestParam(required = false) CategoriaProduto categoria) {
+            @Parameter(description = "Nome da categoria. Ex: CONFEITARIA, BEBIDAS, MERCEARIA")
+            @RequestParam(required = false) String categoriaNome) {
 
-        if (categoria != null) {
-            return ResponseEntity.ok(service.listarPorCategoria(categoria));
+        if (categoriaNome != null) {
+            return ResponseEntity.ok(service.listarPorCategoria(categoriaNome));
         }
         return ResponseEntity.ok(service.listarTodosAtivos());
     }
 
-    // --- 3. LISTAR ALMOÇO DO DIA ---
-    @Operation(summary = "Cardápio de Almoço", description = "Retorna os pratos específicos do dia informado + pratos fixos (disponíveis todos os dias).")
-    @GetMapping("/almoco")
-    public ResponseEntity<List<ProdutoResponseDTO>> listarAlmoco(
-            @Parameter(description = "Ex: 'Segunda-feira', 'Sábado'", required = true)
-            @RequestParam String dia) {
-        return ResponseEntity.ok(service.listarAlmoco(dia));
+    // --- 3. BUSCAR PRODUTO POR ID ---
+    @Operation(summary = "Buscar Produto por ID", description = "Retorna um produto específico pelo seu ID.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Produto encontrado"),
+            @ApiResponse(responseCode = "404", description = "Produto não encontrado")
+    })
+    @GetMapping("/{id}")
+    public ResponseEntity<ProdutoResponseDTO> buscarPorId(@PathVariable Long id) {
+        var response = service.buscarPorId(id);
+        return ResponseEntity.ok(response);
     }
 
-    // --- 4. DESATIVAR PRODUTO ---
+    // --- 4. ATUALIZAR PRODUTO ---
+    @Operation(summary = "Atualizar Produto", description = "Atualiza um produto existente, incluindo a imagem opcional.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Produto atualizado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Erro de validação nos dados enviados"),
+            @ApiResponse(responseCode = "404", description = "Produto não encontrado")
+    })
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
+    public ResponseEntity<ProdutoResponseDTO> atualizar(
+            @PathVariable Long id,
+            @RequestPart("produto") @Valid ProdutoRequestDTO dto,
+            @RequestPart(value = "imagem", required = false) MultipartFile imagem) {
+
+        String caminhoImagem = null;
+        // Se uma nova imagem for enviada, salve-a. Caso contrário, mantenha a imagem existente.
+        if (imagem != null && !imagem.isEmpty()) {
+            caminhoImagem = fileService.salvarArquivo(imagem);
+        }
+        var response = service.atualizarProduto(id, dto, caminhoImagem);
+        return ResponseEntity.ok(response);
+    }
+
+    // --- 5. DESATIVAR PRODUTO ---
     @Operation(summary = "Desativar Produto", description = "Remove o produto do cardápio (Soft Delete).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Produto desativado"),

@@ -1,7 +1,6 @@
 package mba.ivens.padoca.modules.produto.repository;
 
 import mba.ivens.padoca.modules.produto.model.Produto;
-import mba.ivens.padoca.modules.produto.model.enums.CategoriaProduto;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,16 +14,17 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
 
     List<Produto> findByAtivoTrue();
 
-    List<Produto> findByCategoriaAndAtivoTrue(CategoriaProduto categoria);
+    // Filtra por Categoria pelo nome da Categoria e produtos ativos
+    List<Produto> findByCategoria_NomeAndAtivoTrue(String categoriaNome);
 
     @Query("""
         SELECT p FROM Produto p 
         WHERE p.ativo = true 
-        AND p.categoria = :categoria 
+        AND p.categoria.nome = :categoriaNome 
         AND (p.diaDaSemanaDisponivel = :diaSemana OR p.diaDaSemanaDisponivel IS NULL)
     """)
     List<Produto> findAlmocoDoDia(
-            @Param("categoria") CategoriaProduto categoria,
+            @Param("categoriaNome") String categoriaNome, // Changed to String
             @Param("diaSemana") String diaSemana
     );
 
