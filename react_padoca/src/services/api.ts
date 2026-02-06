@@ -8,7 +8,10 @@ import type {
     UsuarioDTO, 
     LoginDTO, 
     LoginResponseDTO,
-    Endereco
+    Endereco,
+    // Importando de types/index.ts
+    TipoUsuario, // Importação CORRETA
+    PageResponse // Importação CORRETA
 } from "../types";
 
 const API_BASE = "http://localhost:8080/api";
@@ -184,11 +187,16 @@ export const FeedbackService = {
 
 export const UsuarioService = {
     // --- Métodos Administrativos ---
-    listar: async (): Promise<Usuario[]> => {
-        const res = await fetch(`${API_BASE}/usuarios`, {
+    // Removido: listar: async (): Promise<Usuario[]> => { ... }
+    listarPaginado: async (page: number, size: number, tipo?: TipoUsuario): Promise<PageResponse<Usuario>> => {
+        let url = `${API_BASE}/usuarios?page=${page}&size=${size}`;
+        if (tipo) {
+            url += `&tipo=${tipo}`;
+        }
+        const res = await fetch(url, {
              headers: getAuthHeader()
         });
-        if (!res.ok) return [];
+        if (!res.ok) throw new Error("Erro ao listar usuários paginados.");
         return res.json();
     },
     salvar: async (dto: UsuarioDTO): Promise<Usuario> => {

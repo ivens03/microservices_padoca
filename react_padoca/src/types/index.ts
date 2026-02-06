@@ -82,3 +82,16 @@ export interface LoginResponseDTO {
     token: string;
     usuario: Usuario; // Agora retorna o objeto completo
 }
+
+// --- NOVOS TIPOS PARA PAGINAÇÃO E ENUM TIPO USUARIO (Movidos para cá) ---
+export type TipoUsuario = "CLIENTE" | "FUNCIONARIO" | "ENTREGADOR" | "ADMIN" | "GESTOR";
+
+export interface PageResponse<T> {
+    content: T[];
+    totalElements: number;
+    totalPages: number;
+    size: number;
+    number: number; // current page number (0-indexed)
+    // outras propriedades da Page do Spring Boot, se necessário
+}
+// --- FIM DOS NOVOS TIPOS ---

@@ -10,14 +10,17 @@ import mba.ivens.padoca.modules.usuarios.dto.UsuarioResponseDTO;
 import mba.ivens.padoca.modules.usuarios.dtoMapper.UsuarioMapper;
 import mba.ivens.padoca.modules.usuarios.model.Endereco;
 import mba.ivens.padoca.modules.usuarios.model.Usuario;
+import mba.ivens.padoca.modules.usuarios.model.enums.TipoUsuario;
 import mba.ivens.padoca.modules.usuarios.repository.EnderecoRepository;
 import mba.ivens.padoca.modules.usuarios.repository.UsuarioRepository;
+import org.springframework.data.domain.Page; // Importação CORRETA
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.domain.Pageable; // Importação CORRETA
 import java.util.List;
 
 @Service
@@ -55,10 +58,14 @@ public class UsuarioService implements UserDetailsService {
                 .toList();
     }
 
-    public List<UsuarioResponseDTO> listarTodosAtivos() {
-        return repository.findAllByAtivoTrue().stream()
-                .map(mapper::toResponse)
-                .toList();
+    public Page<UsuarioResponseDTO> listarAtivosPaginado(TipoUsuario tipo, Pageable pageable) {
+        Page<Usuario> usuariosPage;
+        if (tipo != null) {
+            usuariosPage = repository.findAllByTipoAndAtivoTrue(tipo, pageable);
+        } else {
+            usuariosPage = repository.findAllByAtivoTrue(pageable);
+        }
+        return usuariosPage.map(mapper::toResponse);
     }
 
     public UsuarioResponseDTO buscarPorAtivoPorId(Long id) {

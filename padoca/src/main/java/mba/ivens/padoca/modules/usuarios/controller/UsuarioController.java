@@ -10,13 +10,16 @@ import lombok.RequiredArgsConstructor;
 import mba.ivens.padoca.modules.usuarios.dto.EnderecoDTO;
 import mba.ivens.padoca.modules.usuarios.dto.UsuarioRequestDTO;
 import mba.ivens.padoca.modules.usuarios.dto.UsuarioResponseDTO;
+import mba.ivens.padoca.modules.usuarios.model.enums.TipoUsuario; // Importação adicionada
 import mba.ivens.padoca.modules.usuarios.service.UsuarioService;
+import org.springframework.data.domain.Page; // Importação adicionada
+import org.springframework.data.domain.Pageable; // Importação adicionada
+import org.springframework.data.domain.Sort; // Importação adicionada
+import org.springframework.data.web.PageableDefault; // Importação adicionada
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -37,17 +40,13 @@ public class UsuarioController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @Operation(summary = "Listar todos", description = "Retorna lista de todos os usuários do sistema.")
-    @GetMapping
-    public ResponseEntity<List<UsuarioResponseDTO>> listar() {
-        return ResponseEntity.ok(service.listarTodos());
-    }
-
-    @Operation(summary = "Listar usuários ativos", description = "Retorna a lista de todos os usuários que possuem a flag 'ativo' como TRUE.")
-    @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
-    @GetMapping("/ativos")
-    public ResponseEntity<List<UsuarioResponseDTO>> listarAtivos() {
-        return ResponseEntity.ok(service.listarTodosAtivos());
+    @Operation(summary = "Listar usuários paginados e ativos", description = "Retorna lista de usuários ativos do sistema com paginação e filtro opcional por tipo.")
+    @ApiResponse(responseCode = "200", description = "Lista paginada retornada com sucesso")
+    @GetMapping // Endpoint /api/usuarios agora é paginado
+    public ResponseEntity<Page<UsuarioResponseDTO>> listarUsuariosPaginado(
+            @PageableDefault(page = 0, size = 20, sort = "nome", direction = Sort.Direction.ASC) Pageable pageable, // Padrão de 20 itens
+            @RequestParam(required = false) TipoUsuario tipo) {
+        return ResponseEntity.ok(service.listarAtivosPaginado(tipo, pageable));
     }
 
     @Operation(summary = "Buscar usuário por ID", description = "Retorna os detalhes de um usuário específico. Se o usuário estiver inativo ou não existir, retorna 404.")

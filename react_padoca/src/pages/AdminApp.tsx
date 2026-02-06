@@ -6,16 +6,21 @@ import {
   AlertTriangle, X, Upload, Pencil, 
   BookOpen, Gift, Coffee, ShoppingBasket,
   Tags, Layers, MessageSquare, LogOut,
-  Plus
+  Plus, Users, CheckCircle, XCircle // Novos ícones para GestaoUsuarios
 } from 'lucide-react';
 import { 
     ProdutoService, 
     PedidoService, 
     CategoriaService, 
     DashboardService,
-    FeedbackService 
+    FeedbackService,
+    UsuarioService // Importação de serviço (valor)
 } from '../services/api';
-import type { Produto, Categoria, Pedido, DashboardStats } from '../types';
+import type { 
+    TipoUsuario, 
+    PageResponse 
+} from '../services/api'; // Importação de tipos
+import type { Produto, Categoria, Pedido, DashboardStats, Usuario } from '../types'; // Importação de tipos, incluindo Usuario
 
 // --- TIPO PERSONALIZADO PARA UI ---
 interface ProdutoUI {
@@ -23,8 +28,8 @@ interface ProdutoUI {
     name: string;
     description: string;
     price: number;
-    categoryId: number; // ADDED
-    category: string;
+    categoryId: number; // ID da categoria para seleção no form
+    category: string; // Nome da categoria para exibição
     stock: number;
     minStock: number;
     image: string | null;
@@ -61,8 +66,8 @@ const mapProdutoToLayout = (p: Produto): ProdutoUI => ({
     name: p.nome,
     description: p.descricao,
     price: p.preco,
-    categoryId: p.categoriaId, // NEW: Use categoriaId directly
-    category: p.categoriaNome || 'Geral', // Use categoriaNome directly
+    categoryId: p.categoria?.id || 0, // Acessa o ID da categoria do objeto categoria
+    category: p.categoria?.nome || 'Geral', // Acessa o nome da categoria do objeto categoria
     stock: p.quantidadeEstoque,  // Use quantidadeEstoque directly
     minStock: p.estoqueMinimo,    // Use estoqueMinimo directly
     image: p.imagemUrl ? `${API_URL}${p.imagemUrl}` : null // Set to null if no image URL
@@ -265,9 +270,9 @@ const DashboardGestor = ({ products }: { products: ProdutoUI[] }) => {
 };
 
 interface ProdutoFormData {
-    id: number | undefined;
+    id: number | undefined; // Adicionado para edição
     name: string;
-    description: string;
+    description: string; // Adicionado
     price: string;
     stock: string;
     minStock: string;
@@ -283,7 +288,7 @@ const ProdutoForm = ({
     onSave: (data: ProdutoFormData, file: File | null) => void, 
     onCancel: () => void 
 }) => {
-    const [formData, setFormData] = useState<ProdutoFormData>({ name: '', price: '', stock: '50', minStock: '10', categoryId: '' });
+    const [formData, setFormData] = useState<ProdutoFormData>({ id: undefined, name: '', description: '', price: '', stock: '50', minStock: '10', categoryId: '' });
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [preview, setPreview] = useState('');
 
@@ -580,14 +585,14 @@ const EstoqueGeral = ({ products, onUpdate, categories }: { products: ProdutoUI[
 };
 
 const GestaoCardapio = ({ products, onUpdate, categories }: { products: ProdutoUI[], onUpdate: () => void, categories: Categoria[] }) => {
-    const bakeryItems = products.filter(p => p.type === 'Padaria');
+    const bakeryItems = products; // Alterado para usar os produtos já filtrados
     const [isAdding, setIsAdding] = useState(false);
 
     const handleSave = async (data: ProdutoFormData, file: File | null) => {
         try {
             await ProdutoService.criar({
                 nome: data.name,
-                descricao: 'Item de Padaria',
+                descricao: data.description, // Usa a descrição do formulário
                 preco: parseFloat(data.price),
                 quantidadeEstoque: parseInt(data.stock),
                 estoqueMinimo: parseInt(data.minStock),
@@ -653,6 +658,191 @@ const AgendaEncomendas = ({ commissions }: { commissions: Pedido[] }) => {
   );
 };
 
+// --- NOVO COMPONENTE PARA GESTÃO DE USUÁRIOS (CLIENTES E FUNCIONÁRIOS) ---
+interface GestaoUsuariosProps {
+    onUpdate?: () => void; // Para recarregar dados gerais, se necessário
+}
+
+const GestaoUsuarios = ({ onUpdate }: GestaoUsuariosProps) => {
+    const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(0); // Spring Pageable é 0-indexed
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalElements, setTotalElements] = useState(0);
+    const [pageSize] = useState(20); // Tamanho da página fixo
+    const [filtroTipo, setFiltroTipo] = useState<TipoUsuario | undefined>(undefined);
+    const [searchTerm, setSearchTerm] = useState("");
+
+    const fetchUsuarios = useCallback(async () => {
+        setLoading(true);
+        try {
+            const response: PageResponse<Usuario> = await UsuarioService.listarPaginado(currentPage, pageSize, filtroTipo);
+            setUsuarios(response.content);
+            setTotalPages(response.totalPages);
+            setTotalElements(response.totalElements);
+        } catch (error) {
+            console.error("Erro ao carregar usuários:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [currentPage, pageSize, filtroTipo]);
+
+    useEffect(() => {
+        fetchUsuarios();
+    }, [fetchUsuarios]);
+
+    const handleNextPage = () => {
+        if (currentPage < totalPages - 1) {
+            setCurrentPage(prev => prev + 1);
+        }
+    };
+
+    const handlePrevPage = () => {
+        if (currentPage > 0) {
+            setCurrentPage(prev => prev - 1);
+        }
+    };
+
+    const handleFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = event.target.value;
+        setFiltroTipo(value === "TODOS" ? undefined : (value as TipoUsuario));
+        setCurrentPage(0); // Resetar para a primeira página ao mudar o filtro
+    };
+
+    const handleDeleteUser = async (id: number) => {
+        if (window.confirm("Tem certeza que deseja desativar este usuário?")) {
+            try {
+                // A API de usuários não tem um método para desativar, apenas deletar.
+                // Se deletar significa desativar, podemos usar. Caso contrário, precisaríamos de uma API de PATCH/desativar
+                await UsuarioService.deletar(id); // Assumindo que deletar desativa
+                fetchUsuarios(); // Recarregar a lista
+                if (onUpdate) onUpdate();
+            } catch (error) {
+                console.error("Erro ao desativar usuário:", error);
+                alert("Erro ao desativar usuário.");
+            }
+        }
+    };
+
+    const filteredAndSearchedUsuarios = useMemo(() => {
+        if (!searchTerm) return usuarios;
+        return usuarios.filter(user =>
+            user.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (user.cpf && user.cpf.includes(searchTerm))
+        );
+    }, [usuarios, searchTerm]);
+
+
+    return (
+        <div className="space-y-6 animate-page-transition">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
+                <div>
+                    <h2 className="text-xl font-bold flex items-center gap-2 text-stone-800 dark:text-stone-100">
+                        <Users className="text-blue-500" /> Gestão de Usuários
+                    </h2>
+                    <p className="text-xs text-stone-500">Listagem e gerenciamento de clientes e funcionários.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <select
+                        onChange={handleFilterChange}
+                        value={filtroTipo || "TODOS"}
+                        className="p-2 bg-stone-50 dark:bg-stone-800 rounded-xl outline-none text-stone-700 dark:text-stone-300"
+                    >
+                        <option value="TODOS">Todos</option>
+                        <option value="CLIENTE">Clientes</option>
+                        <option value="FUNCIONARIO">Funcionários</option>
+                        <option value="ADMIN">Administradores</option>
+                        <option value="GESTOR">Gestores</option>
+                        <option value="ENTREGADOR">Entregadores</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
+                <input
+                    type="text"
+                    placeholder="Buscar por nome, email ou CPF..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl outline-none"
+                />
+            </div>
+
+            {loading ? (
+                <div className="text-center py-10 text-stone-400">Carregando usuários...</div>
+            ) : filteredAndSearchedUsuarios.length === 0 ? (
+                <div className="text-center py-10 text-stone-400">Nenhum usuário encontrado.</div>
+            ) : (
+                <div className="grid grid-cols-1 gap-4">
+                    {filteredAndSearchedUsuarios.map(user => (
+                        <div key={user.id} className="bg-white dark:bg-stone-900 p-4 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm flex items-center justify-between">
+                            <div>
+                                <h3 className="font-bold text-lg text-stone-800 dark:text-stone-100">{user.nome}</h3>
+                                <p className="text-sm text-stone-500">{user.email}</p>
+                                <p className="text-xs text-stone-400 uppercase">
+                                    {user.tipo} {user.cpf ? `• CPF: ${user.cpf}` : ''}
+                                </p>
+                                <p className="text-xs text-stone-400 flex items-center gap-1">
+                                    Status: {user.ativo ? <CheckCircle size={14} className="text-green-500" /> : <XCircle size={14} className="text-red-500" />} {user.ativo ? 'Ativo' : 'Inativo'}
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => alert("Funcionalidade de edição em breve!")} // TODO: Implementar edição
+                                    className="p-2 text-stone-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
+                                >
+                                    <Pencil size={16} />
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteUser(user.id)}
+                                    className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+            
+            {/* Controles de Paginação */}
+            {totalPages > 1 && (
+                <div className="flex justify-center items-center space-x-2 mt-6">
+                    <button
+                        onClick={handlePrevPage}
+                        disabled={currentPage === 0}
+                        className="px-4 py-2 rounded-lg font-bold bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-300 dark:hover:bg-stone-600 disabled:opacity-50"
+                    >
+                        Anterior
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setCurrentPage(i)}
+                            className={`px-4 py-2 rounded-lg font-bold ${
+                                currentPage === i
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-300 dark:hover:bg-stone-600'
+                            }`}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+                    <button
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages - 1}
+                        className="px-4 py-2 rounded-lg font-bold bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-300 dark:hover:bg-stone-600 disabled:opacity-50"
+                    >
+                        Próxima
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+// --- FIM DO NOVO COMPONENTE ---
+
 // --- APP PRINCIPAL (ADMIN) ---
 
 export default function AdminApp() {
@@ -695,6 +885,7 @@ export default function AdminApp() {
         { id: 'inventory', label: 'Estoque Central', icon: Package }, 
         { id: 'categories', label: 'Categorias Mercado', icon: Tags }, 
         { id: 'feedbacks', label: 'Feedback Clientes', icon: MessageSquare },
+        { id: 'users', label: 'Gestão de Usuários', icon: Users }, // NOVA ABA
       ]; 
     }
     return [
@@ -751,6 +942,7 @@ export default function AdminApp() {
                 {activeTab === 'inventory' && <EstoqueGeral products={products} onUpdate={refreshData} categories={categories} />}
                 {activeTab === 'categories' && <GestaoCategorias categories={categories} onUpdate={refreshData} />}
                 {activeTab === 'feedbacks' && <GestaoFeedback />}
+                {activeTab === 'users' && <GestaoUsuarios />} {/* NOVO COMPONENTE */}
               </>
             ) : (
               <>
