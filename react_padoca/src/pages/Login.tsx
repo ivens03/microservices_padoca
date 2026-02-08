@@ -10,7 +10,6 @@ export function Login() {
   const [view, setView] = useState<AuthView>('login');
   const [loading, setLoading] = useState(false);
   
-  // ESTADO PARA MENSAGEM DE ERRO NA TELA
   const [errorMsg, setErrorMsg] = useState('');
 
   const [formData, setFormData] = useState({
@@ -29,7 +28,6 @@ export function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Tentando fazer login..."); // DEBUG
 
     try {
       const data = await AuthService.login({ 
@@ -37,8 +35,6 @@ export function Login() {
           senha: formData.password 
       });
       
-      console.log("Resposta do Login:", data); // DEBUG: Veja o que chega aqui no console do navegador (F12)
-
       if (!data || !data.token) {
           throw new Error("Token não recebido");
       }
@@ -46,15 +42,11 @@ export function Login() {
       localStorage.setItem('padoca_token', data.token);
       localStorage.setItem('padoca_user', JSON.stringify(data.usuario));
 
-      // Verificação robusta
       const tipoUsuario = data.usuario?.tipo;
-      console.log("Tipo do usuário:", tipoUsuario); // DEBUG
 
       if (tipoUsuario === 'CLIENTE') {
-        console.log("Navegando para /client"); // DEBUG
         navigate('/app');
       } else if (tipoUsuario === 'ADMIN' || tipoUsuario === 'GESTOR' || tipoUsuario === 'FUNCIONARIO') {
-        console.log("Navegando para /admin"); // DEBUG
         navigate('/admin');
       } else {
         console.warn("Tipo de usuário desconhecido ou indefinido:", tipoUsuario);
@@ -86,7 +78,7 @@ export function Login() {
             email: formData.email,
             senha: formData.password,
             cpf: cpfLimpo, 
-            tipo: 'CLIENTE' // <--- CORREÇÃO: Mudado de 'cargo' para 'tipo'
+            tipo: 'CLIENTE'
         });
 
         const loginResponse = await AuthService.login({
@@ -116,8 +108,6 @@ export function Login() {
     setTimeout(() => {
         setLoading(false);
         setErrorMsg('');
-        // Aqui simulamos sucesso com uma mensagem na própria tela ou um alert pequeno se preferir, 
-        // mas para manter consistência, vamos voltar ao login
         alert(`Link de recuperação enviado para ${formData.email}`);
         switchView('login');
     }, 1500);
@@ -127,7 +117,6 @@ export function Login() {
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center p-4 transition-colors duration-300">
       <div className="bg-white dark:bg-stone-900 rounded-[32px] shadow-2xl overflow-hidden max-w-4xl w-full flex flex-col md:flex-row border border-stone-100 dark:border-stone-800 min-h-[600px]">
         
-        {/* Lado Esquerdo - Visual */}
         <div className="md:w-1/2 bg-amber-500 p-12 flex flex-col justify-between text-white relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
              <svg width="100%" height="100%"><pattern id="pattern-circles" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="20" cy="20" r="2" fill="currentColor" /></pattern><rect width="100%" height="100%" fill="url(#pattern-circles)" /></svg>
@@ -150,10 +139,8 @@ export function Login() {
           <div className="text-sm text-amber-200 relative z-10 mt-8">© 2025 Padoca Digital.</div>
         </div>
 
-        {/* Lado Direito - Formulários */}
         <div className="md:w-1/2 p-12 flex flex-col justify-center animate-fade-in relative">
           
-          {/* MENSAGEM DE ERRO VISUAL */}
           {errorMsg && (
               <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl flex items-start gap-3 text-red-600 dark:text-red-400 animate-pulse-short">
                   <AlertCircle size={20} className="shrink-0 mt-0.5" />
@@ -161,7 +148,6 @@ export function Login() {
               </div>
           )}
 
-          {/* VIEW: LOGIN */}
           {view === 'login' && (
               <div className="animate-fade-in">
                 <h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mb-2">Acesse sua conta</h2>
@@ -192,7 +178,6 @@ export function Login() {
               </div>
           )}
 
-          {/* VIEW: REGISTER */}
           {view === 'register' && (
               <div className="animate-fade-in">
                 <button onClick={() => switchView('login')} className="absolute top-6 right-6 text-stone-400 hover:text-stone-600"><ArrowLeft size={24}/></button>
@@ -243,7 +228,6 @@ export function Login() {
               </div>
           )}
 
-          {/* VIEW: FORGOT */}
           {view === 'forgot' && (
               <div className="animate-fade-in">
                 <button onClick={() => switchView('login')} className="absolute top-6 right-6 text-stone-400 hover:text-stone-600"><ArrowLeft size={24}/></button>

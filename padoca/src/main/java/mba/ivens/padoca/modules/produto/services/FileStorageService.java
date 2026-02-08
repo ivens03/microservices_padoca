@@ -15,16 +15,14 @@ public class FileStorageService {
 
     public String salvarArquivo(MultipartFile arquivo) {
         try {
-            // Cria a pasta se não existir
             if (!Files.exists(root)) {
                 Files.createDirectory(root);
             }
 
-            // Gera um nome único para evitar sobrescrever arquivos com o mesmo nome
             String nomeArquivo = UUID.randomUUID() + "_" + arquivo.getOriginalFilename();
             Files.copy(arquivo.getInputStream(), this.root.resolve(nomeArquivo));
 
-            return "/uploads/" + nomeArquivo; // Retorna o caminho para salvar no banco
+            return "/uploads/" + nomeArquivo;
         } catch (IOException e) {
             throw new RuntimeException("Não foi possível salvar a imagem: " + e.getMessage());
         }

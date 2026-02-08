@@ -39,7 +39,7 @@ public class CategoriaService {
 
         categoria.setNome(dto.nome().toUpperCase());
         categoria.setDescricao(dto.descricao());
-        categoria.setTipoExibicao(dto.tipoExibicao()); // Atualiza o tipo de exibição
+        categoria.setTipoExibicao(dto.tipoExibicao());
 
         Categoria atualizado = repository.save(categoria);
         return mapper.toResponse(atualizado);

@@ -3,12 +3,11 @@ import { Clock, CheckCircle, ChefHat, AlertCircle, RefreshCw } from "lucide-reac
 import { PedidoService } from "../../services/api";
 import type { Pedido } from "../../types";
 
-// --- AQUI ESTÁ A CORREÇÃO: Definir que aceita 'viewMode' ---
 interface OrderBoardProps {
     viewMode: 'gestor' | 'cozinha' | 'balcao';
 }
 
-export function OrderBoard({ viewMode }: OrderBoardProps) { // <--- Recebendo a prop aqui
+export function OrderBoard({ viewMode }: OrderBoardProps) {
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -16,7 +15,6 @@ export function OrderBoard({ viewMode }: OrderBoardProps) { // <--- Recebendo a 
         setLoading(true);
         try {
             const dados = await PedidoService.listarFila();
-            // Se quiser filtrar por viewMode no futuro, pode fazer aqui
             setPedidos(dados);
         } catch (error) {
             console.error(error);
@@ -65,7 +63,6 @@ export function OrderBoard({ viewMode }: OrderBoardProps) { // <--- Recebendo a 
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* COLUNA: RECEBIDO */}
                 <div className="space-y-4">
                     <h3 className="font-bold text-stone-500 uppercase tracking-widest text-xs flex items-center gap-2 mb-4">
                         <span className="w-2 h-2 rounded-full bg-blue-500"></span> Recebidos
@@ -76,7 +73,6 @@ export function OrderBoard({ viewMode }: OrderBoardProps) { // <--- Recebendo a 
                     {pedidos.filter(p => p.status === 'RECEBIDO').length === 0 && <EmptyState msg="Nenhum pedido novo" />}
                 </div>
 
-                {/* COLUNA: EM PREPARO */}
                 <div className="space-y-4">
                     <h3 className="font-bold text-stone-500 uppercase tracking-widest text-xs flex items-center gap-2 mb-4">
                         <span className="w-2 h-2 rounded-full bg-amber-500"></span> Em Preparo
@@ -87,7 +83,6 @@ export function OrderBoard({ viewMode }: OrderBoardProps) { // <--- Recebendo a 
                     {pedidos.filter(p => p.status === 'EM_PREPARO').length === 0 && <EmptyState msg="Cozinha livre" />}
                 </div>
 
-                {/* COLUNA: PRONTO */}
                 <div className="space-y-4">
                     <h3 className="font-bold text-stone-500 uppercase tracking-widest text-xs flex items-center gap-2 mb-4">
                         <span className="w-2 h-2 rounded-full bg-green-500"></span> Prontos

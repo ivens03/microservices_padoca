@@ -32,8 +32,8 @@ public class Produto {
 
     @ManyToOne
     @JoinColumn(name = "categoria_id", nullable = false)
-    @EqualsAndHashCode.Exclude // Exclui de equals e hashCode gerados pelo Lombok
-    @ToString.Exclude     // Exclui de toString gerado pelo Lombok
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private Categoria categoria;
 
     @Column(nullable = false)
@@ -41,7 +41,7 @@ public class Produto {
 
     private Integer quantidadeEstoque = 0;
 
-    private Integer estoqueMinimo = 5; // Valor padrão 5
+    private Integer estoqueMinimo = 5;
 
     private String diaDaSemanaDisponivel;
 

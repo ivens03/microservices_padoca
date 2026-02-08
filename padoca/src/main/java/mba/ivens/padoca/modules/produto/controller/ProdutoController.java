@@ -27,7 +27,6 @@ public class ProdutoController {
     private final ProdutoService service;
     private final FileStorageService fileService;
 
-    // --- 1. CADASTRAR PRODUTO ---
     @Operation(summary = "Cadastrar Produto", description = "Cria um item de menu, mercado ou almoço.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Produto criado com sucesso"),
@@ -46,7 +45,6 @@ public class ProdutoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // --- 2. LISTAR (GERAL OU POR CATEGORIA) ---
     @Operation(summary = "Listar Produtos", description = "Lista todos os produtos ativos. Use o parâmetro opcional 'categoriaNome' para filtrar.")
     @GetMapping
     public ResponseEntity<List<ProdutoResponseDTO>> listar(
@@ -59,7 +57,6 @@ public class ProdutoController {
         return ResponseEntity.ok(service.listarTodosAtivos());
     }
 
-    // --- 3. BUSCAR PRODUTO POR ID ---
     @Operation(summary = "Buscar Produto por ID", description = "Retorna um produto específico pelo seu ID.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Produto encontrado"),
@@ -71,7 +68,6 @@ public class ProdutoController {
         return ResponseEntity.ok(response);
     }
 
-    // --- 4. ATUALIZAR PRODUTO ---
     @Operation(summary = "Atualizar Produto", description = "Atualiza um produto existente, incluindo a imagem opcional.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Produto atualizado com sucesso"),
@@ -85,7 +81,6 @@ public class ProdutoController {
             @RequestPart(value = "imagem", required = false) MultipartFile imagem) {
 
         String caminhoImagem = null;
-        // Se uma nova imagem for enviada, salve-a. Caso contrário, mantenha a imagem existente.
         if (imagem != null && !imagem.isEmpty()) {
             caminhoImagem = fileService.salvarArquivo(imagem);
         }
@@ -93,7 +88,6 @@ public class ProdutoController {
         return ResponseEntity.ok(response);
     }
 
-    // --- 5. DESATIVAR PRODUTO ---
     @Operation(summary = "Desativar Produto", description = "Remove o produto do cardápio (Soft Delete).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Produto desativado"),

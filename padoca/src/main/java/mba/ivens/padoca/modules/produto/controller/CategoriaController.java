@@ -33,7 +33,6 @@ public class CategoriaController {
     public ResponseEntity<CategoriaResponseDTO> criar(@RequestBody @Valid CategoriaRequestDTO dto) {
         CategoriaResponseDTO response = service.salvar(dto);
 
-        // Boa prática: Retornar o Header Location com a URI do novo recurso
         URI uri = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(response.id()).toUri();
 

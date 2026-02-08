@@ -13,14 +13,14 @@ import mba.ivens.padoca.modules.usuarios.model.Usuario;
 import mba.ivens.padoca.modules.usuarios.model.enums.TipoUsuario;
 import mba.ivens.padoca.modules.usuarios.repository.EnderecoRepository;
 import mba.ivens.padoca.modules.usuarios.repository.UsuarioRepository;
-import org.springframework.data.domain.Page; // Importação CORRETA
+import org.springframework.data.domain.Page;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import org.springframework.data.domain.Pageable; // Importação CORRETA
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 @Service

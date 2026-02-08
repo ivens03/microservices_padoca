@@ -374,7 +374,6 @@ const OrderBoard = ({ orders, onUpdateStatus }: { orders: Pedido[], onUpdateStat
 const RegistrarEncomenda = ({ onAdd }: { onAdd: () => void }) => {
   const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      // Lógica de encomenda
       alert("Encomendas em breve");
       onAdd();
   };
@@ -418,7 +417,7 @@ export default function AdminApp() {
   const [orders, setOrders] = useState<Pedido[]>([]);
   const [categories, setCategories] = useState<Categoria[]>([]);
   
-  // CORREÇÃO: refreshData agora é memoizado com useCallback
+  // RefreshData agora é memoizado com useCallback
   const refreshData = useCallback(async () => {
       try {
           const [p, o, c] = await Promise.all([
@@ -434,7 +433,7 @@ export default function AdminApp() {
       }
   }, []);
 
-  // CORREÇÃO: refreshData está no array, mas como é useCallback, não causa loop
+  // RefreshData está no array, mas como é useCallback, não causa loop
   useEffect(() => {
       refreshData();
   }, [refreshData]);

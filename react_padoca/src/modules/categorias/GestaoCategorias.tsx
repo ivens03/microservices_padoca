@@ -17,7 +17,6 @@ export function GestaoCategorias() {
     action: (() => void) | null;
   }>({ isOpen: false, type: null, title: '', message: '', action: null });
 
-  // Função estável para buscar dados (useCallback garante que a referência não mude)
   const carregarCategorias = useCallback(async () => {
       try {
           const dados = await CategoriaService.listar();
@@ -27,7 +26,6 @@ export function GestaoCategorias() {
       }
   }, []);
 
-  // Effect seguro: Envolvemos a chamada para deixar claro que é um efeito colateral assíncrono
   useEffect(() => {
     let isMounted = true;
     const init = async () => {
@@ -100,7 +98,6 @@ export function GestaoCategorias() {
 
   return (
     <div className="space-y-6 animate-page-transition relative">
-       {/* Modal */}
        {confirmation.isOpen && (
          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setConfirmation({...confirmation, isOpen: false})}></div>

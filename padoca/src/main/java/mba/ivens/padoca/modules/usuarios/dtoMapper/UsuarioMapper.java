@@ -25,7 +25,7 @@ public class UsuarioMapper {
                 c.setEmail(dto.email());
                 c.setSenha(dto.senha());
                 c.setCpf(dto.cpf());
-                c.setTelefone(dto.telefone()); // Adicionado
+                c.setTelefone(dto.telefone());
                 yield c;
             }
             case FUNCIONARIO, ADMIN, ENTREGADOR, GESTOR -> {
@@ -43,7 +43,6 @@ public class UsuarioMapper {
     }
 
     public UsuarioResponseDTO toResponse(Usuario entity) {
-        // Mapeia a lista de endereços (Entity -> DTO)
         List<EnderecoDTO> enderecos = entity.getEnderecos() == null ? Collections.emptyList() :
                 entity.getEnderecos().stream()
                         .map(e -> new EnderecoDTO(
@@ -58,7 +57,6 @@ public class UsuarioMapper {
                                 e.getTipo()
                         )).toList();
 
-        // Retorna o DTO com a estrutura nova (incluindo telefone e endereços)
         return new UsuarioResponseDTO(
                 entity.getId(),
                 entity.isAtivo(),
@@ -67,9 +65,9 @@ public class UsuarioMapper {
                 entity.getDataCriacao(),
                 entity.getEmail(),
                 entity.getNome(),
-                entity.getTelefone(), // Adicionado
+                entity.getTelefone(),
                 entity.getTipo(),
-                enderecos // Adicionado
+                enderecos
         );
     }
 

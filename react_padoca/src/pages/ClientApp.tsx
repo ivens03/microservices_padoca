@@ -12,10 +12,8 @@ interface CartItem extends Produto {
     qty: number;
 }
 
-// Imagem de placeholder segura (não usa internet externa)
 const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' fill='%239ca3af'%3ESem Foto%3C/text%3E%3C/svg%3E";
 
-// --- Componente de Navegação ---
 interface NavigationMenuProps {
     activeTab: string;
     onTabChange: (tab: string) => void;
@@ -99,8 +97,6 @@ export default function ClientApp() {
             ]);
             setProducts(p);
             setCategories(c);
-            console.log("Produtos carregados da API (ClientApp - useEffect):", p); // NOVO LOG
-            console.log("Categorias carregadas da API (ClientApp - useEffect):", c); // NOVO LOG
 
             try {
                 const usuarioReal = await UsuarioService.getMe();
@@ -169,7 +165,6 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
       }
 
       try {
-          // Chama o Back-end
           await FeedbackService.enviar({
               cliente: user.nome || "Cliente Anônimo",
               mensagem: feedbackMsg || "Sem mensagem",
@@ -178,7 +173,6 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
 
           alert(`Obrigado! Seu feedback de ${rating} estrelas foi enviado.`);
           
-          // Limpa o formulário
           setRating(0);
           setHoverRating(0);
           setFeedbackMsg('');
@@ -194,19 +188,16 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
   const getFilteredProducts = () => {
       let filtered = products;
 
-      // Define categories that belong to 'Mercado' based on the current logic
       const marketCategoryNames = [
-          'mercado', 'mercearia', 'adega', 'laticínos', // Original market terms
-          'pao', 'carnes', 'doce', 'confeitaria', 'bebidas', 'lanches', 'salgados', // Common categories
-          'item de padaria', 'item de estoque', // Categories from DB product names
-          'aaa', 'um otimo doce' // Specific categories found in your DB data
+          'mercado', 'mercearia', 'adega', 'laticínos',
+          'pao', 'carnes', 'doce', 'confeitaria', 'bebidas', 'lanches', 'salgados',
+          'item de padaria', 'item de estoque',
+          'aaa', 'um otimo doce'
       ];
-      // Get the IDs of these market categories
       const marketCategoryIds = categories
           .filter(cat => marketCategoryNames.some(name => normalizeCategoryName(cat.nome).includes(name)))
           .map(cat => cat.id);
 
-      // Define categories that belong to 'Almoço'
       const lunchCategoryNames = ['almoço', 'prato'];
       const lunchCategoryIds = categories
           .filter(cat => lunchCategoryNames.some(name => normalizeCategoryName(cat.nome).includes(name)))
@@ -218,7 +209,7 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
       } else if (activeTab === 'mercado') {
           filtered = products.filter(p => marketCategoryIds.includes(p.categoriaId));
       } else if (activeTab === 'menu') {
-          filtered = []; // Cardápio agora está vazio, produtos foram movidos para Mercado
+          filtered = [];
       }
 
       if (activeCategory !== 'todos') {
@@ -245,7 +236,6 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950 font-sans text-stone-900 dark:text-stone-100 pb-20 md:pb-0 transition-colors duration-300">
         
-        {/* HEADER */}
         <header className="fixed top-0 left-0 right-0 z-50 bg-amber-50/95 dark:bg-stone-900/95 backdrop-blur-md shadow-sm border-b border-amber-100 dark:border-stone-800 h-16">
             <div className="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
                 <div className="flex items-center gap-3">
@@ -267,7 +257,6 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
             </div>
         </header>
 
-        {/* MENUS FLUTUANTES (Mobile + Carrinho) */}
         <div className={`fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm transition-opacity duration-300 md:hidden ${isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsMobileMenuOpen(false)}/>
         <div className={`fixed top-0 left-0 z-[61] h-full w-72 bg-white dark:bg-stone-900 shadow-2xl p-6 flex flex-col transition-transform duration-300 ease-out transform md:hidden ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="flex justify-between items-center mb-8">
@@ -296,7 +285,6 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
                 </div>
             </aside>
 
-            {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-grow pb-10">
                 
                 {['menu', 'almoco', 'mercado'].includes(activeTab) && (
@@ -323,7 +311,6 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
                                 {displayProducts.map(prod => (
                                     <div key={prod.id} className="bg-white dark:bg-stone-900 p-4 rounded-3xl shadow-sm hover:shadow-xl transition-all group border border-stone-100 dark:border-stone-800 flex flex-col h-full">
-                                        {/* CORREÇÃO DA IMAGEM PARA REDE BLOQUEADA */}
                                         <div className="h-48 rounded-2xl overflow-hidden mb-4 relative flex-shrink-0">
                                             <img 
                                                 src={`http://localhost:8080${prod.imagemUrl}`} 
@@ -444,7 +431,6 @@ const handleFeedbackSubmit = async (e: React.FormEvent) => {
 
                 {activeTab === 'encomendas' && (
                     <div className="space-y-12 animate-fade-in"><div className="text-center max-w-2xl mx-auto"><div className="w-16 h-16 bg-pink-100 dark:bg-pink-900/20 rounded-full flex items-center justify-center mx-auto mb-4 text-pink-500"><Gift size={32}/></div><h2 className="text-3xl font-bold mb-2 text-stone-800 dark:text-stone-100">Encomendas Especiais</h2><p className="text-stone-500">Torne sua festa inesquecível com nossos kits exclusivos ou personalize tudo do seu jeito.</p></div>{encomendaProducts.length > 0 && (<div><h3 className="font-bold text-xl text-stone-800 dark:text-stone-100 mb-6 flex items-center gap-2 border-b border-stone-200 dark:border-stone-800 pb-2"><Package size={22} className="text-pink-500"/> Kits Prontos</h3><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">{encomendaProducts.map(prod => (<div key={prod.id} className="bg-white dark:bg-stone-900 p-4 rounded-3xl shadow-sm hover:shadow-xl transition-all group border border-stone-100 dark:border-stone-800 flex flex-col h-full ring-2 ring-transparent hover:ring-pink-100 dark:hover:ring-pink-900/30"><div className="h-48 rounded-2xl overflow-hidden mb-4 relative flex-shrink-0">
-                        {/* IMAGEM PROTEGIDA AQUI TAMBÉM */}
                         <img src={`http://localhost:8080${prod.imagemUrl}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" onError={(e) => e.currentTarget.src = PLACEHOLDER_IMG} />
                         </div><div className="flex justify-between items-start mb-2"><h3 className="font-bold text-lg leading-tight text-stone-800 dark:text-stone-100">{prod.nome}</h3><span className="bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400 px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap">R$ {prod.preco.toFixed(2)}</span></div><p className="text-sm text-stone-500 line-clamp-3 mb-4 flex-grow">{prod.descricao}</p><button onClick={() => addToCart(prod)} className="w-full bg-pink-500 text-white py-3.5 rounded-2xl font-bold hover:bg-pink-600 transition-all active:scale-95 shadow-lg shadow-pink-200 dark:shadow-none flex items-center justify-center gap-2"><ShoppingBag size={18} /> Encomendar Kit</button></div>))}</div></div>)}<div className="bg-white dark:bg-stone-900 rounded-[32px] p-8 md:p-12 border border-stone-100 dark:border-stone-800 shadow-xl relative overflow-hidden"><div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none"><PenTool size={180}/></div><div className="flex flex-col md:flex-row gap-8 items-start relative z-10"><div className="md:w-1/3"><div className="bg-pink-100 p-4 rounded-2xl w-fit text-pink-600 mb-4"><PenTool size={32}/></div><h3 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mb-2">Monte do seu jeito</h3><p className="text-stone-500 leading-relaxed">Tem uma ideia específica? Descreva seu pedido, escolha a data e nós preparamos um orçamento especial para você.</p></div><div className="md:w-2/3 w-full bg-stone-50 dark:bg-stone-800/50 p-6 rounded-3xl border border-stone-100 dark:border-stone-700/50"><form className="space-y-5 text-left"><div><label className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-1.5 block">Data da Festa</label><input type="date" className="w-full p-4 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 outline-none focus:ring-2 focus:ring-pink-500/20 transition-all font-medium text-stone-700 dark:text-stone-200"/></div><div><label className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-1.5 block">O que você precisa?</label><textarea className="w-full p-4 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 outline-none h-32 focus:ring-2 focus:ring-pink-500/20 transition-all resize-none font-medium text-stone-700 dark:text-stone-200" placeholder="Ex: Bolo de chocolate para 20 pessoas..."></textarea></div><button type="button" className="w-full bg-stone-800 dark:bg-white text-white dark:text-stone-900 py-4 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg active:scale-98 flex items-center justify-center gap-2"><Send size={18}/> Solicitar Orçamento</button></form></div></div></div></div>
                 )}

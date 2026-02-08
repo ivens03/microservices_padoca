@@ -39,7 +39,6 @@ public class Usuario implements UserDetails {
     @Column(nullable = false, length = 14)
     private String cpf;
 
-    // --- CAMPO NOVO ---
     private String telefone;
 
     @Enumerated(EnumType.STRING)

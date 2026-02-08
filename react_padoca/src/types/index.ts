@@ -1,3 +1,7 @@
+import { Usuario, Funcionario, TipoUsuario } from "./usuario";
+
+export type { Usuario, Funcionario, TipoUsuario };
+
 export interface Categoria {
     id: number;
     nome: string;
@@ -25,7 +29,7 @@ export interface Pedido {
     id: number;
     cliente: string;
     status: string;
-    tipo: 'BALCAO' | 'ENCOMENDA'; // Adicionado para evitar erro de tipo
+    tipo: 'BALCAO' | 'ENCOMENDA';
     total: number;
     dataHora: string;
     descricaoItens: string[];
@@ -47,19 +51,7 @@ export interface Endereco {
     cidade: string;
     estado: string;
     cep: string;
-    tipo: string; // "Casa", "Trabalho"
-}
-
-export interface Usuario {
-    id: number;
-    nome: string;
-    email: string;
-    telefone?: string;
-    tipo: 'GESTOR' | 'FUNCIONARIO' | 'CLIENTE' | 'ADMIN' | 'ENTREGADOR';
-    ativo: boolean;
-    cpf?: string;
-    enderecos: Endereco[];
-    dataCriacao: string; // Adicionado para o AdminApp
+    tipo: string;
 }
 
 export interface UsuarioDTO {
@@ -69,8 +61,6 @@ export interface UsuarioDTO {
     cpf?: string;
     telefone?: string;
     tipo: string;
-    cargo?: string;
-    matricula?: string;
 }
 
 export interface LoginDTO {
@@ -80,18 +70,13 @@ export interface LoginDTO {
 
 export interface LoginResponseDTO {
     token: string;
-    usuario: Usuario; // Agora retorna o objeto completo
+    usuario: Usuario;
 }
-
-// --- NOVOS TIPOS PARA PAGINAÇÃO E ENUM TIPO USUARIO (Movidos para cá) ---
-export type TipoUsuario = "CLIENTE" | "FUNCIONARIO" | "ENTREGADOR" | "ADMIN" | "GESTOR";
 
 export interface PageResponse<T> {
     content: T[];
     totalElements: number;
     totalPages: number;
     size: number;
-    number: number; // current page number (0-indexed)
-    // outras propriedades da Page do Spring Boot, se necessário
+    number: number;
 }
-// --- FIM DOS NOVOS TIPOS ---

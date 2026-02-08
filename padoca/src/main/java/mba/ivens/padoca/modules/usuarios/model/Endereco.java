@@ -17,14 +17,14 @@ public class Endereco {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String logradouro; // Rua, Avenida...
+    private String logradouro;
     private String numero;
     private String complemento;
     private String bairro;
     private String cidade;
-    private String estado; // UF
+    private String estado;
     private String cep;
-    private String tipo; // Casa, Trabalho
+    private String tipo;
 
     @ManyToOne
     @JoinColumn(name = "usuario_id")

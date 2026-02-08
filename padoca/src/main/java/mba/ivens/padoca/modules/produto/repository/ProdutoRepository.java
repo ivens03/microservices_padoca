@@ -14,7 +14,6 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
 
     List<Produto> findByAtivoTrue();
 
-    // Filtra por Categoria pelo nome da Categoria e produtos ativos
     List<Produto> findByCategoria_NomeAndAtivoTrue(String categoriaNome);
 
     @Query("""
@@ -24,7 +23,7 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
         AND (p.diaDaSemanaDisponivel = :diaSemana OR p.diaDaSemanaDisponivel IS NULL)
     """)
     List<Produto> findAlmocoDoDia(
-            @Param("categoriaNome") String categoriaNome, // Changed to String
+            @Param("categoriaNome") String categoriaNome,
             @Param("diaSemana") String diaSemana
     );
 

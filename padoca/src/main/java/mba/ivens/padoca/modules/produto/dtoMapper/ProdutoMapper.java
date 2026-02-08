@@ -17,10 +17,10 @@ public class ProdutoMapper {
                 entity.getDescricao(),
                 entity.getPreco(),
                 entity.getImagemUrl(),
-                entity.getCategoria() != null ? entity.getCategoria().getNome() : null, // Handle null category
-                entity.getCategoria() != null ? entity.getCategoria().getId() : null,   // Add categoriaId
-                entity.getQuantidadeEstoque(),  // Add quantidadeEstoque
-                entity.getEstoqueMinimo(),      // Add estoqueMinimo
+                entity.getCategoria() != null ? entity.getCategoria().getNome() : null,
+                entity.getCategoria() != null ? entity.getCategoria().getId() : null,
+                entity.getQuantidadeEstoque(),
+                entity.getEstoqueMinimo(),
                 entity.getDiaDaSemanaDisponivel()
         );
     }

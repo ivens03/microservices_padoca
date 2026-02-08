@@ -9,14 +9,13 @@ import type {
     LoginDTO, 
     LoginResponseDTO,
     Endereco,
-    // Importando de types/index.ts
-    TipoUsuario, // Importação CORRETA
-    PageResponse // Importação CORRETA
+    TipoUsuario,
+    Funcionario,
+    PageResponse
 } from "../types";
 
 const API_BASE = "http://localhost:8080/api";
 
-// Função auxiliar para pegar o cabeçalho com token
 const getAuthHeader = () => {
     const token = localStorage.getItem('padoca_token');
     return {
@@ -25,7 +24,6 @@ const getAuthHeader = () => {
     };
 };
 
-// Função para upload de arquivos (não usa Content-Type json)
 const getUploadHeader = () => {
     const token = localStorage.getItem('padoca_token');
     return {
@@ -52,7 +50,7 @@ export const CategoriaService = {
   salvar: async (dto: CategoriaDTO): Promise<Categoria> => {
     const res = await fetch(`${API_BASE}/categorias`, {
       method: "POST",
-      headers: getAuthHeader(), // <--- CORREÇÃO AQUI
+      headers: getAuthHeader(),
       body: JSON.stringify(dto),
     });
     if (!res.ok) throw new Error("Erro ao salvar categoria");
@@ -61,7 +59,7 @@ export const CategoriaService = {
   editar: async (id: number, dto: CategoriaDTO): Promise<Categoria> => {
     const res = await fetch(`${API_BASE}/categorias/${id}`, {
       method: "PUT",
-      headers: getAuthHeader(), // <--- CORREÇÃO AQUI
+      headers: getAuthHeader(),
       body: JSON.stringify(dto),
     });
     return res.json();
@@ -69,7 +67,7 @@ export const CategoriaService = {
   deletar: async (id: number): Promise<void> => {
     await fetch(`${API_BASE}/categorias/${id}`, { 
         method: "DELETE",
-        headers: getAuthHeader() // <--- CORREÇÃO AQUI
+        headers: getAuthHeader()
     });
   },
 };
@@ -88,7 +86,6 @@ export const ProdutoService = {
     return res.json();
   },
   criar: async (produtoJSON: Record<string, unknown>, arquivo: File | null) => {
-    console.log("Frontend sending produtoJSON (create):", produtoJSON);
     const formData = new FormData();
     const jsonBlob = new Blob([JSON.stringify(produtoJSON)], { type: "application/json" });
     formData.append("produto", jsonBlob);
@@ -106,7 +103,6 @@ export const ProdutoService = {
     return res.json();
   },
   atualizar: async (id: number, produtoJSON: Record<string, unknown>, arquivo: File | null) => {
-    console.log("Frontend sending produtoJSON (update):", produtoJSON);
     const formData = new FormData();
     const jsonBlob = new Blob([JSON.stringify(produtoJSON)], { type: "application/json" });
     formData.append("produto", jsonBlob);
@@ -139,7 +135,6 @@ export const PedidoService = {
     if (!res.ok) return [];
     return res.json();
   },
-  // ... (mantenha os outros métodos, adicionando getAuthHeader onde for POST/PUT/PATCH)
   criar: async (pedido: any) => {
     const res = await fetch(`${API_BASE}/pedidos`, {
         method: "POST",
@@ -156,15 +151,6 @@ export const PedidoService = {
     });
   }
 };
-
-// ... Mantenha o UsuarioService e AuthService como estavam, eles já pareciam corretos.
-// Adicionando o FeedbackService novo:
-
-export interface FeedbackDTO {
-    cliente: string;
-    mensagem: string;
-    avaliacao: number;
-}
 
 export const FeedbackService = {
     enviar: async (dto: FeedbackDTO) => {
@@ -186,8 +172,10 @@ export const FeedbackService = {
 };
 
 export const UsuarioService = {
-    // --- Métodos Administrativos ---
-    // Removido: listar: async (): Promise<Usuario[]> => { ... }
+    listarTodos: async (): Promise<Array<Usuario | Funcionario>> => {
+        const res = await UsuarioService.listarPaginado(0, 1000);
+        return res.content;
+    },
     listarPaginado: async (page: number, size: number, tipo?: TipoUsuario): Promise<PageResponse<Usuario>> => {
         let url = `${API_BASE}/usuarios?page=${page}&size=${size}`;
         if (tipo) {
@@ -211,11 +199,22 @@ export const UsuarioService = {
         }
         return res.json();
     },
+    atualizar: async (id: number, dto: UsuarioDTO): Promise<Usuario> => {
+        const res = await fetch(`${API_BASE}/usuarios/${id}`, {
+            method: "PUT",
+            headers: getAuthHeader(),
+            body: JSON.stringify(dto),
+        });
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || `Erro ao atualizar usuário ${id}`);
+        }
+        return res.json();
+    },
     deletar: async (id: number) => {
         await fetch(`${API_BASE}/usuarios/${id}`, { method: 'DELETE', headers: getAuthHeader() });
     },
 
-    // --- Métodos do Próprio Usuário (Perfil e Endereços) ---
     getMe: async (): Promise<Usuario> => {
         const token = localStorage.getItem('padoca_token');
         if (!token) throw new Error("Usuário não autenticado.");
@@ -235,7 +234,6 @@ export const UsuarioService = {
     atualizarPerfil: async (dados: { nome: string, telefone: string, email: string, tipo: string, senha?: string }) => {
         const token = localStorage.getItem('padoca_token');
         
-        // Garante que os campos obrigatórios do DTO Backend sejam preenchidos
         const payload = {
             ...dados,
             senha: dados.senha || "nao_alterar", 

@@ -24,8 +24,8 @@ public class TokenService {
             return JWT.create()
                     .withIssuer("padoca-api")
                     .withSubject(usuario.getEmail())
-                    .withClaim("id", usuario.getId()) // Guarda o ID no token
-                    .withClaim("role", usuario.getTipo().toString()) // Guarda o tipo
+                    .withClaim("id", usuario.getId())
+                    .withClaim("role", usuario.getTipo().toString())
                     .withExpiresAt(genExpirationDate())
                     .sign(algorithm);
         } catch (JWTCreationException exception) {

@@ -21,7 +21,7 @@ public class Categoria {
 
     private String descricao;
 
-    private String tipoExibicao; // Novo campo para indicar o tipo de exibição (Mercado, Almoço, etc.)
+    private String tipoExibicao;
 
     private Boolean ativo = true;
 }
